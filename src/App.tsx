@@ -1,15 +1,15 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import SidebarLayout from "./components/Sidebar/SidebarLayout";
 import ControlPage from "./pages/ControlPage";
 
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Default route goes to Control */}
-        <Route path="/" element={<ControlPage />} />
-        {/* You can add more routes later */}
-        {/* <Route path="/strats" element={<StratsPage />} /> */}
-      </Routes>
+      <SidebarLayout>
+        <Routes>
+          <Route path="/" element={<ControlPage />} />
+        </Routes>
+      </SidebarLayout>
     </BrowserRouter>
   );
 }
