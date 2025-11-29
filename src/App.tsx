@@ -1,15 +1,15 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import SidebarLayout from "./components/sidebar/SidebarLayout";
+import PageLayout from "./components/layout/PageLayout";
 import ControlPage from "./pages/ControlPage";
 
 function App() {
   return (
     <BrowserRouter>
-      <SidebarLayout>
-        <Routes>
+      <Routes>
+        <Route element={<PageLayout />}>
           <Route path="/" element={<ControlPage />} />
-        </Routes>
-      </SidebarLayout>
+        </Route>
+      </Routes>
     </BrowserRouter>
   );
 }
