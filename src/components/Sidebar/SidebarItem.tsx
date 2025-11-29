@@ -1,9 +1,10 @@
 import { NavLink } from "react-router-dom";
+import { ReactNode } from "react";
 
 type SidebarItemProps = {
   label: string;
   to: string;
-  icon?: React.ReactNode;
+  icon: ReactNode;
 };
 
 export default function SidebarItem({ label, to, icon }: SidebarItemProps) {
@@ -11,15 +12,12 @@ export default function SidebarItem({ label, to, icon }: SidebarItemProps) {
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `
-        flex items-center gap-3 px-4 py-2 rounded-md 
-        text-white hover:bg-gray-800 transition-colors 
-        ${isActive ? "bg-blue-600 text-white font-regular" : ""}
-        `
+        `flex items-center gap-3 px-4 py-2 rounded-md cursor-pointer transition
+        ${isActive ? "bg-blue-600 text-white" : "text-gray-300  hover:bg-gray-700 hover:text-white"}`
       }
     >
-      {icon && <span className="text-xl">{icon}</span>}
-      <span>{label}</span>
+      <span className="w-5 h-5">{icon}</span>
+      <span className="text-sm">{label}</span>
     </NavLink>
   );
 }
