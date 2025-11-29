@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import SidebarLayout from "./components/Sidebar/SidebarLayout";
+import SidebarLayout from "./components/sidebar/SidebarLayout";
 import ControlPage from "./pages/ControlPage";
 
 function App() {
