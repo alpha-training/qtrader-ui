@@ -1,4 +1,4 @@
-import Modal from "../UI/Modal";
+import Modal from "./Modal";
 
 type Props = {
   isOpen: boolean;
@@ -7,7 +7,7 @@ type Props = {
   onClose: () => void;
 };
 
-export default function ConfirmStopModal({
+export default function ConfirmStartModal({
   isOpen,
   processName,
   onConfirm,
@@ -16,7 +16,7 @@ export default function ConfirmStopModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
       <h2 className="text-lg font-semibold mb-4">
-        Are you sure you want to stop the process{" "}
+        Are you sure you want to start the process{" "}
         <span className="text-white">“{processName}”</span>?
       </h2>
 
@@ -30,9 +30,9 @@ export default function ConfirmStopModal({
 
         <button
           onClick={onConfirm}
-          className="px-4 py-2 rounded-md bg-orange-600 hover:bg-orange-700 text-white"
+          className="px-4 py-2 rounded-md bg-green-600 hover:bg-green-700 text-white"
         >
-          Stop
+          Start
         </button>
       </div>
     </Modal>

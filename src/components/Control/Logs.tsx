@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import LogEntry from "./LogEntry";
 
 const channels = ["All", "tp1", "rdb1", "wdb1", "hdb1", "start1"];
@@ -11,14 +11,20 @@ const mockLogs = [
   { timestamp: "17:56:27", level: "INFO", message: "processing trades...", channel: "tp1" },
 ];
 
-export default function Logs() {
-  const [selectedChannel, setSelectedChannel] = useState("rdb1");
+export default function Logs({
+  selectedChannel,
+  onChannelChange
+}: {
+  selectedChannel: string;
+  onChannelChange: (ch: string) => void;
+}) {
   const [showInfo, setShowInfo] = useState(true);
   const [showError, setShowError] = useState(true);
   const [autoScroll, setAutoScroll] = useState(true);
 
   const logContainerRef = useRef<HTMLDivElement>(null);
 
+  // Filter logs
   const filteredLogs = mockLogs.filter((log) => {
     const channelMatches =
       selectedChannel === "All" || log.channel === selectedChannel;
@@ -30,19 +36,28 @@ export default function Logs() {
     return channelMatches && levelMatches;
   });
 
-  // Auto-scroll effect
+  // Scroll on logs change
   useEffect(() => {
     if (autoScroll && logContainerRef.current) {
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
-  }, [filteredLogs, autoScroll]);
+  }, [filteredLogs]);
+
+  // Scroll on channel change
+  useEffect(() => {
+    if (autoScroll && logContainerRef.current) {
+      setTimeout(() => {
+        logContainerRef.current!.scrollTop =
+          logContainerRef.current!.scrollHeight;
+      }, 100);
+    }
+  }, [selectedChannel]);
 
   return (
     <div className="mt-10">
-      {/* Title */}
       <h2 className="text-xl font-semibold mb-4">Logs:</h2>
 
-      {/* Tabs */}
+      {/* Channel tabs */}
       <div className="flex items-center gap-6 text-gray-400 mb-4">
         {channels.map((ch) => (
           <span
@@ -50,7 +65,7 @@ export default function Logs() {
             className={`cursor-pointer hover:text-white ${
               selectedChannel === ch ? "text-white font-medium" : ""
             }`}
-            onClick={() => setSelectedChannel(ch)}
+            onClick={() => onChannelChange(ch)}
           >
             {ch}
           </span>
@@ -82,7 +97,7 @@ export default function Logs() {
         </label>
       </div>
 
-      {/* Auto Scroll Toggle */}
+      {/* Auto-scroll toggle */}
       <div className="flex items-center gap-2 mb-3">
         <span className="text-sm text-gray-300">Auto-scroll</span>
 

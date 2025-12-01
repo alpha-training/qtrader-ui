@@ -1,32 +1,31 @@
 import type { Process } from "../../types/Process";
 import { FileText } from "lucide-react";
-import Spinner from "../UI/Spinner";
 
 type ProcessRowProps = {
   process: Process;
   onStart: (name: string) => void;
   onStop: (name: string) => void;
-  loading: string | null;
-  changed: boolean;
+  onSelect: (name: string) => void;
+  isLoading: boolean;
 };
 
 export default function ProcessRow({
   process,
   onStart,
   onStop,
-  loading,
-  changed
+  onSelect,
+  isLoading,
 }: ProcessRowProps) {
-
   const isRunning = process.status === "up";
-  const isLoading = loading === process.name;
+
+  const handleRowClick = () => {
+    onSelect(process.name);
+  };
 
   return (
     <tr
-      className={`
-        border-b border-gray-800 transition
-        ${changed ? "bg-[#1a2330] animate-pulse duration-500" : "hover:bg-[#151b20]"}
-      `}
+      className="border-b border-gray-800 hover:bg-[#151b20] transition cursor-pointer animate-fadeIn"
+      onClick={handleRowClick}
     >
       <td className="px-4 py-3 font-medium text-white">{process.name}</td>
       <td className="px-4 py-3 text-gray-300">{process.host}</td>
@@ -47,25 +46,48 @@ export default function ProcessRow({
       <td className="px-4 py-3 text-gray-300">{process.mem ?? "-"}</td>
 
       <td className="px-4 py-3 text-gray-300">
-        <FileText size={18} className="cursor-pointer hover:text-white" />
+        <FileText
+          size={18}
+          className="cursor-pointer hover:text-white"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect(process.name);
+          }}
+        />
       </td>
 
       <td className="px-4 py-3">
-        {isLoading ? (
-          <div className="flex justify-center"><Spinner /></div>
-        ) : isRunning ? (
+        {isRunning ? (
           <button
-            onClick={() => onStop(process.name)}
-            className="border border-orange-500 text-orange-400 px-4 py-1 rounded-md hover:bg-orange-500 hover:text-black transition"
+            onClick={(e) => {
+              e.stopPropagation();
+              onStop(process.name);
+            }}
+            disabled={isLoading}
+            className={`border px-4 py-1 rounded-md transition
+              ${
+                isLoading
+                  ? "border-orange-900 text-orange-700 cursor-not-allowed"
+                  : "border-orange-500 text-orange-400 hover:bg-orange-500 hover:text-black"
+              }`}
           >
-            Stop
+            {isLoading ? "..." : "Stop"}
           </button>
         ) : (
           <button
-            onClick={() => onStart(process.name)}
-            className="border border-green-500 text-green-400 px-4 py-1 rounded-md hover:bg-green-500 hover:text-black transition"
+            onClick={(e) => {
+              e.stopPropagation();
+              onStart(process.name);
+            }}
+            disabled={isLoading}
+            className={`border px-4 py-1 rounded-md transition
+              ${
+                isLoading
+                  ? "border-green-900 text-green-700 cursor-not-allowed"
+                  : "border-green-500 text-green-400 hover:bg-green-500 hover:text-black"
+              }`}
           >
-            Start
+            {isLoading ? "..." : "Start"}
           </button>
         )}
       </td>

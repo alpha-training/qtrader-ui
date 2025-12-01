@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-
 import PageLayout from "./components/layout/PageLayout";
+
 import ControlPage from "./pages/ControlPage";
 import StratsPage from "./pages/StratsPage";
 import ChartsPage from "./pages/ChartsPage";

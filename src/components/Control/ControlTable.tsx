@@ -2,27 +2,18 @@ import { useState } from "react";
 import ProcessRow from "./ProcessRow";
 import Pagination from "../UI/Pagination";
 
-import ConfirmStopModal from "../control/ConfirmStopModal";
-import ConfirmStartModal from "../control/ConfirmStartModal";
-
+import ConfirmStopModal from "../UI/ConfirmStopModal";
+import ConfirmStartModal from "../UI/ConfirmStartModal";
 import ConfirmStartAllModal from "../UI/ConfirmStartAllModal";
 import ConfirmStopAllModal from "../UI/ConfirmStopAllModal";
 
 import type { Process } from "../../types/Process";
 
-// -------------------------------------------------------------
-// FAKE API WRAPPER — Replace with real backend later
-// -------------------------------------------------------------
-const fakeApi = <T,>(callback: () => T): Promise<T> => {
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(callback()), 600);
-  });
+type ControlTableProps = {
+  onSelectChannel: (name: string) => void; // NEW
 };
 
-export default function ControlTable() {
-  // -----------------------------------------------------------
-  // STATE
-  // -----------------------------------------------------------
+export default function ControlTable({ onSelectChannel }: ControlTableProps) {
   const [processes, setProcesses] = useState<Process[]>([
     { name: "tp1", host: "localhost", port: 5010, status: "down", pid: null, mem: null },
     { name: "rdb1", host: "localhost", port: 5011, status: "down", pid: null, mem: null },
@@ -31,38 +22,29 @@ export default function ControlTable() {
     { name: "start1", host: "localhost", port: 5014, status: "down", pid: null, mem: null },
   ]);
 
-  // Loading state for individual rows
-  const [loadingProcess, setLoadingProcess] = useState<string | null>(null);
-
-  // Flash animation per row
-  const [flashRows, setFlashRows] = useState<Record<string, boolean>>({});
-
-  // Highlight row after a change
-  const flashRow = (name: string) => {
-    setFlashRows(prev => ({ ...prev, [name]: true }));
-    setTimeout(() => {
-      setFlashRows(prev => ({ ...prev, [name]: false }));
-    }, 600);
-  };
-
-  // -----------------------------------------------------------
-  // PAGINATION
-  // -----------------------------------------------------------
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 5;
-  const totalPages = Math.ceil(processes.length / pageSize);
-
-  const paginated = processes.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
-
-  // -----------------------------------------------------------
-  // MODALS — single process
-  // -----------------------------------------------------------
   const [stopModalOpen, setStopModalOpen] = useState(false);
   const [startModalOpen, setStartModalOpen] = useState(false);
   const [selectedProcess, setSelectedProcess] = useState<string | null>(null);
+
+  // Loading state for individual row buttons
+  const [loadingProcess, setLoadingProcess] = useState<string | null>(null);
+
+  // Start/Stop all modals
+  const [startAllOpen, setStartAllOpen] = useState(false);
+  const [stopAllOpen, setStopAllOpen] = useState(false);
+
+  // ALL loading
+  const [loadingAll, setLoadingAll] = useState(false);
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
+  const totalPages = Math.ceil(processes.length / pageSize);
+  const paginated = processes.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  // -------------------------
+  // SINGLE PROCESS ACTIONS
+  // -------------------------
 
   const handleStart = (name: string) => {
     setSelectedProcess(name);
@@ -74,15 +56,12 @@ export default function ControlTable() {
     setStopModalOpen(true);
   };
 
-  // -----------------------------------------------------------
-  // CONFIRM Start single
-  // -----------------------------------------------------------
-  const confirmStart = async () => {
+  const confirmStart = () => {
     if (!selectedProcess) return;
 
     setLoadingProcess(selectedProcess);
 
-    await fakeApi(() => {
+    setTimeout(() => {
       setProcesses(prev =>
         prev.map(p =>
           p.name === selectedProcess
@@ -90,52 +69,37 @@ export default function ControlTable() {
             : p
         )
       );
-    });
-
-    flashRow(selectedProcess);
-    setLoadingProcess(null);
-    setStartModalOpen(false);
-    setSelectedProcess(null);
+      setLoadingProcess(null);
+      setStartModalOpen(false);
+      setSelectedProcess(null);
+    }, 600);
   };
 
-  // -----------------------------------------------------------
-  // CONFIRM Stop single
-  // -----------------------------------------------------------
-  const confirmStop = async () => {
+  const confirmStop = () => {
     if (!selectedProcess) return;
 
     setLoadingProcess(selectedProcess);
 
-    await fakeApi(() => {
+    setTimeout(() => {
       setProcesses(prev =>
         prev.map(p =>
-          p.name === selectedProcess
-            ? { ...p, status: "down", pid: null }
-            : p
+          p.name === selectedProcess ? { ...p, status: "down", pid: null } : p
         )
       );
-    });
-
-    flashRow(selectedProcess);
-    setLoadingProcess(null);
-    setStopModalOpen(false);
-    setSelectedProcess(null);
+      setLoadingProcess(null);
+      setStopModalOpen(false);
+      setSelectedProcess(null);
+    }, 600);
   };
 
-  // -----------------------------------------------------------
-  // MODALS — ALL PROCESSES
-  // -----------------------------------------------------------
-  const [startAllOpen, setStartAllOpen] = useState(false);
-  const [stopAllOpen, setStopAllOpen] = useState(false);
+  // -------------------------
+  // START / STOP ALL
+  // -------------------------
 
-  const openStartAll = () => setStartAllOpen(true);
-  const openStopAll = () => setStopAllOpen(true);
+  const confirmStartAll = () => {
+    setLoadingAll(true);
 
-  // -----------------------------------------------------------
-  // CONFIRM Start All
-  // -----------------------------------------------------------
-  const confirmStartAll = async () => {
-    await fakeApi(() => {
+    setTimeout(() => {
       setProcesses(prev =>
         prev.map(p =>
           p.status === "down"
@@ -143,73 +107,62 @@ export default function ControlTable() {
             : p
         )
       );
-    });
-
-    processes.forEach(p => flashRow(p.name));
-    setStartAllOpen(false);
+      setStartAllOpen(false);
+      setLoadingAll(false);
+    }, 800);
   };
 
-  // -----------------------------------------------------------
-  // CONFIRM Stop All
-  // -----------------------------------------------------------
-  const confirmStopAll = async () => {
-    await fakeApi(() => {
+  const confirmStopAll = () => {
+    setLoadingAll(true);
+
+    setTimeout(() => {
       setProcesses(prev =>
         prev.map(p =>
           p.status === "up" ? { ...p, status: "down", pid: null } : p
         )
       );
-    });
-
-    processes.forEach(p => flashRow(p.name));
-    setStopAllOpen(false);
+      setStopAllOpen(false);
+      setLoadingAll(false);
+    }, 800);
   };
 
-  // Disable buttons if all running or all stopped
   const allRunning = processes.every(p => p.status === "up");
   const allStopped = processes.every(p => p.status === "down");
 
-  // -----------------------------------------------------------
-  // RENDER
-  // -----------------------------------------------------------
   return (
     <div>
-
-      {/* ----------------------------------------------------- */}
-      {/* Header buttons                                        */}
-      {/* ----------------------------------------------------- */}
+      {/* Top buttons */}
       <div className="flex justify-end mb-4 gap-2">
 
         <button
-          onClick={openStartAll}
-          disabled={allRunning}
+          onClick={() => setStartAllOpen(true)}
+          disabled={allRunning || loadingAll}
           className={`
             px-4 py-2 rounded-md transition
-            ${allRunning 
-              ? "bg-green-900 text-green-700 cursor-not-allowed" 
-              : "bg-green-600 hover:bg-green-700 text-white"}
+            ${allRunning || loadingAll
+                ? "bg-green-900 text-green-700 cursor-not-allowed"
+                : "bg-green-600 hover:bg-green-700 text-white"}
           `}
         >
-          Start all
+          {loadingAll ? "Starting..." : "Start all"}
         </button>
 
         <button
-          onClick={openStopAll}
-          disabled={allStopped}
+          onClick={() => setStopAllOpen(true)}
+          disabled={allStopped || loadingAll}
           className={`
             px-4 py-2 rounded-md transition
-            ${allStopped
-              ? "bg-orange-900 text-orange-700 cursor-not-allowed"
-              : "bg-orange-600 hover:bg-orange-700 text-white"}
+            ${allStopped || loadingAll
+                ? "bg-orange-900 text-orange-700 cursor-not-allowed"
+                : "bg-orange-600 hover:bg-orange-700 text-white"}
           `}
         >
-          Stop all
+          {loadingAll ? "Stopping..." : "Stop all"}
         </button>
+
       </div>
 
-      {/* ----------------------------------------------------- */}
-      {/* TABLE                                                 */}
-      {/* ----------------------------------------------------- */}
+      {/* Table */}
       <div className="overflow-hidden rounded-lg border border-gray-800">
         <table className="w-full text-left text-sm">
           <thead className="bg-[#151b20] text-gray-400">
@@ -226,33 +179,30 @@ export default function ControlTable() {
           </thead>
 
           <tbody>
-            {paginated.map(p => (
+            {paginated.map((p) => (
               <ProcessRow
                 key={p.name}
                 process={p}
+                onSelect={onSelectChannel}
                 onStart={handleStart}
                 onStop={handleStop}
-                loading={loadingProcess}
-                changed={flashRows[p.name] ?? false}
+                isLoading={loadingProcess === p.name}
               />
             ))}
           </tbody>
         </table>
       </div>
 
-      {/* ----------------------------------------------------- */}
-      {/* PAGINATION                                            */}
-      {/* ----------------------------------------------------- */}
+      {/* Pagination */}
+      <div className="flex justify-end">
       <Pagination
         currentPage={currentPage}
         totalPages={totalPages}
         onPrev={() => setCurrentPage(p => Math.max(1, p - 1))}
         onNext={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
       />
-
-      {/* ----------------------------------------------------- */}
-      {/* MODALS — SINGLE PROCESS                               */}
-      {/* ----------------------------------------------------- */}
+      </div>
+      {/* Modals */}
       <ConfirmStopModal
         isOpen={stopModalOpen}
         processName={selectedProcess}
@@ -267,9 +217,6 @@ export default function ControlTable() {
         onConfirm={confirmStart}
       />
 
-      {/* ----------------------------------------------------- */}
-      {/* MODALS — ALL PROCESSES                                */}
-      {/* ----------------------------------------------------- */}
       <ConfirmStartAllModal
         isOpen={startAllOpen}
         onClose={() => setStartAllOpen(false)}
