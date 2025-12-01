@@ -1,27 +1,37 @@
 import type { Process } from "../../types/Process";
-import { FileText, Play, Square } from "lucide-react";
+import { FileText } from "lucide-react";
+import Spinner from "../UI/Spinner";
 
 type ProcessRowProps = {
   process: Process;
   onStart: (name: string) => void;
   onStop: (name: string) => void;
+  loading: string | null;
+  changed: boolean;
 };
 
-export default function ProcessRow({ process, onStart, onStop }: ProcessRowProps) {
+export default function ProcessRow({
+  process,
+  onStart,
+  onStop,
+  loading,
+  changed
+}: ProcessRowProps) {
+
   const isRunning = process.status === "up";
+  const isLoading = loading === process.name;
 
   return (
-    <tr className="border-b border-gray-800 hover:bg-[#151b20] transition">
-      {/* Name */}
+    <tr
+      className={`
+        border-b border-gray-800 transition
+        ${changed ? "bg-[#1a2330] animate-pulse duration-500" : "hover:bg-[#151b20]"}
+      `}
+    >
       <td className="px-4 py-3 font-medium text-white">{process.name}</td>
-
-      {/* Host */}
       <td className="px-4 py-3 text-gray-300">{process.host}</td>
-
-      {/* Port */}
       <td className="px-4 py-3 text-gray-300">{process.port}</td>
 
-      {/* Status */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
           <span
@@ -33,24 +43,17 @@ export default function ProcessRow({ process, onStart, onStop }: ProcessRowProps
         </div>
       </td>
 
-      {/* PID */}
-      <td className="px-4 py-3 text-gray-300">
-        {process.pid ?? "-"}
-      </td>
+      <td className="px-4 py-3 text-gray-300">{process.pid ?? "-"}</td>
+      <td className="px-4 py-3 text-gray-300">{process.mem ?? "-"}</td>
 
-      {/* Memory */}
-      <td className="px-4 py-3 text-gray-300">
-        {process.mem ?? "-"}
-      </td>
-
-      {/* Log icon */}
       <td className="px-4 py-3 text-gray-300">
         <FileText size={18} className="cursor-pointer hover:text-white" />
       </td>
 
-      {/* Action */}
       <td className="px-4 py-3">
-        {isRunning ? (
+        {isLoading ? (
+          <div className="flex justify-center"><Spinner /></div>
+        ) : isRunning ? (
           <button
             onClick={() => onStop(process.name)}
             className="border border-orange-500 text-orange-400 px-4 py-1 rounded-md hover:bg-orange-500 hover:text-black transition"
