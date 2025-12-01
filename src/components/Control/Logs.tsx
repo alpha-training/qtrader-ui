@@ -11,110 +11,119 @@ const mockLogs = [
   { timestamp: "17:56:27", level: "INFO", message: "processing trades...", channel: "tp1" },
 ];
 
+type LogsProps = {
+  selectedChannel: string;
+  onChannelChange: (channel: string) => void;
+};
+
 export default function Logs({
   selectedChannel,
-  onChannelChange
-}: {
-  selectedChannel: string;
-  onChannelChange: (ch: string) => void;
-}) {
+  onChannelChange,
+}: LogsProps) {
   const [showInfo, setShowInfo] = useState(true);
   const [showError, setShowError] = useState(true);
   const [autoScroll, setAutoScroll] = useState(true);
 
   const logContainerRef = useRef<HTMLDivElement>(null);
 
-  // Filter logs
-  const filteredLogs = mockLogs.filter((log) => {
-    const channelMatches =
-      selectedChannel === "All" || log.channel === selectedChannel;
-
-    const levelMatches =
+  const filtered = mockLogs.filter(log => {
+    const chMatch = selectedChannel === "All" || log.channel === selectedChannel;
+    const levelMatch =
       (log.level === "INFO" && showInfo) ||
       (log.level === "ERROR" && showError);
 
-    return channelMatches && levelMatches;
+    return chMatch && levelMatch;
   });
 
-  // Scroll on logs change
   useEffect(() => {
     if (autoScroll && logContainerRef.current) {
-      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+      logContainerRef.current.scrollTop =
+        logContainerRef.current.scrollHeight;
     }
-  }, [filteredLogs]);
-
-  // Scroll on channel change
-  useEffect(() => {
-    if (autoScroll && logContainerRef.current) {
-      setTimeout(() => {
-        logContainerRef.current!.scrollTop =
-          logContainerRef.current!.scrollHeight;
-      }, 100);
-    }
-  }, [selectedChannel]);
+  }, [filtered, autoScroll]);
 
   return (
     <div className="mt-10">
+
+      {/* Title */}
       <h2 className="text-xl font-semibold mb-4">Logs:</h2>
 
-      {/* Channel tabs */}
-      <div className="flex items-center gap-6 text-gray-400 mb-4">
-        {channels.map((ch) => (
-          <span
-            key={ch}
-            className={`cursor-pointer hover:text-white ${
-              selectedChannel === ch ? "text-white font-medium" : ""
-            }`}
-            onClick={() => onChannelChange(ch)}
-          >
-            {ch}
-          </span>
-        ))}
-      </div>
+      {/* Tabs + Refresh button */}
+      <div className="flex items-center justify-between mb-4">
 
-      {/* Filters */}
-      <div className="text-gray-300 mb-3 flex items-center gap-4">
-        <span className="text-sm">Message types:</span>
+        {/* Tabs */}
+        <div className="flex items-center gap-4 text-gray-400">
+          {channels.map(ch => (
+            <button
+              key={ch}
+              onClick={() => onChannelChange(ch)}
+              className={`text-sm transition ${
+                selectedChannel === ch
+                  ? "text-white font-medium underline underline-offset-4"
+                  : "hover:text-white"
+              }`}
+            >
+              {ch}
+            </button>
+          ))}
+        </div>
 
-        <label className="flex items-center gap-2 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={showInfo}
-            onChange={(e) => setShowInfo(e.target.checked)}
-            className="w-4 h-4 border-gray-600 bg-transparent"
-          />
-          <span className="text-sm">info</span>
-        </label>
-
-        <label className="flex items-center gap-2 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={showError}
-            onChange={(e) => setShowError(e.target.checked)}
-            className="w-4 h-4 border-gray-600 bg-transparent"
-          />
-          <span className="text-sm">error</span>
-        </label>
-      </div>
-
-      {/* Auto-scroll toggle */}
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-sm text-gray-300">Auto-scroll</span>
-
+        {/* Refresh button */}
         <button
-          onClick={() => setAutoScroll(!autoScroll)}
-          className={`
-            relative w-10 h-5 rounded-full transition
-            ${autoScroll ? "bg-blue-500" : "bg-gray-600"}
-          `}
+          className="px-3 py-1.5 rounded-md border border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white transition text-sm"
+          onClick={() => console.log("Refresh clicked")}
         >
-          <span
-            className={`
-              block w-4 h-4 bg-white rounded-full absolute top-0.5 transition
-              ${autoScroll ? "left-5" : "left-0.5"}
-            `}
-          />
+          Refresh
         </button>
+      </div>
+
+      {/* Message types + auto-scroll */}
+      <div className="flex justify-between items-center mb-3">
+
+        {/* Left side: checkboxes */}
+        <div className="flex items-center gap-6 text-gray-300 text-sm">
+          <span>Message types:</span>
+
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showInfo}
+              onChange={() => setShowInfo(v => !v)}
+              className="w-4 h-4"
+            />
+            info
+          </label>
+
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showError}
+              onChange={() => setShowError(v => !v)}
+              className="w-4 h-4"
+            />
+            error
+          </label>
+        </div>
+
+        {/* Right side: Auto-scroll */}
+        <div className="flex items-center gap-3 text-sm text-gray-300">
+          Auto-scroll
+
+          <button
+            onClick={() => setAutoScroll(v => !v)}
+            className={`
+              relative w-10 h-5 rounded-full transition
+              ${autoScroll ? "bg-blue-500" : "bg-gray-600"}
+            `}
+          >
+            <span
+              className={`
+                absolute top-0.5 block w-4 h-4 bg-white rounded-full transition
+                ${autoScroll ? "left-5" : "left-0.5"}
+              `}
+            />
+          </button>
+        </div>
       </div>
 
       {/* Log window */}
@@ -122,7 +131,11 @@ export default function Logs({
         ref={logContainerRef}
         className="h-64 overflow-y-auto border border-gray-800 rounded-lg p-4 bg-[#11161b]"
       >
-        {filteredLogs.map((log, i) => (
+        {filtered.length === 0 && (
+          <div className="text-gray-500 italic text-sm">No logs.</div>
+        )}
+
+        {filtered.map((log, i) => (
           <LogEntry
             key={i}
             timestamp={log.timestamp}
@@ -130,10 +143,6 @@ export default function Logs({
             message={log.message}
           />
         ))}
-
-        {filteredLogs.length === 0 && (
-          <div className="text-gray-500 text-sm italic">No logs.</div>
-        )}
       </div>
     </div>
   );
