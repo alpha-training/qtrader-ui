@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import LogEntry from "./LogEntry";
 
 const channels = ["All", "tp1", "rdb1", "wdb1", "hdb1", "start1"];
@@ -15,6 +15,9 @@ export default function Logs() {
   const [selectedChannel, setSelectedChannel] = useState("rdb1");
   const [showInfo, setShowInfo] = useState(true);
   const [showError, setShowError] = useState(true);
+  const [autoScroll, setAutoScroll] = useState(true);
+
+  const logContainerRef = useRef<HTMLDivElement>(null);
 
   const filteredLogs = mockLogs.filter((log) => {
     const channelMatches =
@@ -26,6 +29,13 @@ export default function Logs() {
 
     return channelMatches && levelMatches;
   });
+
+  // Auto-scroll effect
+  useEffect(() => {
+    if (autoScroll && logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [filteredLogs, autoScroll]);
 
   return (
     <div className="mt-10">
@@ -72,8 +82,31 @@ export default function Logs() {
         </label>
       </div>
 
+      {/* Auto Scroll Toggle */}
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-sm text-gray-300">Auto-scroll</span>
+
+        <button
+          onClick={() => setAutoScroll(!autoScroll)}
+          className={`
+            relative w-10 h-5 rounded-full transition
+            ${autoScroll ? "bg-blue-500" : "bg-gray-600"}
+          `}
+        >
+          <span
+            className={`
+              block w-4 h-4 bg-white rounded-full absolute top-0.5 transition
+              ${autoScroll ? "left-5" : "left-0.5"}
+            `}
+          />
+        </button>
+      </div>
+
       {/* Log window */}
-      <div className="h-64 overflow-y-auto border border-gray-800 rounded-lg p-4 bg-[#11161b]">
+      <div
+        ref={logContainerRef}
+        className="h-64 overflow-y-auto border border-gray-800 rounded-lg p-4 bg-[#11161b]"
+      >
         {filteredLogs.map((log, i) => (
           <LogEntry
             key={i}
@@ -84,7 +117,7 @@ export default function Logs() {
         ))}
 
         {filteredLogs.length === 0 && (
-          <div className="text-gray-500 text-smitalic">No logs.</div>
+          <div className="text-gray-500 text-sm italic">No logs.</div>
         )}
       </div>
     </div>
