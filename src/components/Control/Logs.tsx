@@ -14,103 +14,139 @@ const mockLogs = [
 type LogsProps = {
   selectedChannel: string;
   onChannelChange: (channel: string) => void;
+  onRefresh?: () => void; // опционально, для будущего API
 };
 
 export default function Logs({
   selectedChannel,
   onChannelChange,
+  onRefresh,
 }: LogsProps) {
   const [showInfo, setShowInfo] = useState(true);
   const [showError, setShowError] = useState(true);
   const [autoScroll, setAutoScroll] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const logContainerRef = useRef<HTMLDivElement>(null);
 
-  const filtered = mockLogs.filter(log => {
-    const chMatch = selectedChannel === "All" || log.channel === selectedChannel;
-    const levelMatch =
+  const filteredLogs = mockLogs.filter((log) => {
+    const channelMatches =
+      selectedChannel === "All" || log.channel === selectedChannel;
+
+    const levelMatches =
       (log.level === "INFO" && showInfo) ||
       (log.level === "ERROR" && showError);
 
-    return chMatch && levelMatch;
+    return channelMatches && levelMatches;
   });
 
+  const scrollToBottom = () => {
+    const el = logContainerRef.current;
+    if (!el || !autoScroll) return;
+
+    el.scrollTo({
+      top: el.scrollHeight,
+      behavior: "smooth",
+    });
+  };
+
   useEffect(() => {
-    if (autoScroll && logContainerRef.current) {
-      logContainerRef.current.scrollTop =
-        logContainerRef.current.scrollHeight;
+    scrollToBottom();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredLogs.length]);
+
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      if (onRefresh) {
+        await Promise.resolve(onRefresh());
+      } else {
+        await new Promise((res) => setTimeout(res, 400));
+      }
+    } finally {
+      setIsRefreshing(false);
     }
-  }, [filtered, autoScroll]);
+  };
 
   return (
     <div className="mt-10">
-
-      {/* Title */}
       <h2 className="text-xl font-semibold mb-4">Logs:</h2>
 
-      {/* Tabs + Refresh button */}
-      <div className="flex items-center justify-between mb-4">
-
+      <div className="flex items-center justify-between mb-3">
         {/* Tabs */}
         <div className="flex items-center gap-4 text-gray-400">
-          {channels.map(ch => (
+          {channels.map((ch) => (
             <button
               key={ch}
               onClick={() => onChannelChange(ch)}
-              className={`text-sm transition ${
-                selectedChannel === ch
-                  ? "text-white font-medium underline underline-offset-4"
-                  : "hover:text-white"
-              }`}
+              className={`
+                text-sm transition
+                ${
+                  selectedChannel === ch
+                    ? "text-blue-500 font-bold underline underline-offset-4"
+                    : "hover:text-white font-semibold"
+                }
+              `}
             >
               {ch}
             </button>
           ))}
         </div>
 
-        {/* Refresh button */}
+        {/* Refresh */}
         <button
-          className="px-3 py-1.5 rounded-md border border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white transition text-sm"
-          onClick={() => console.log("Refresh clicked")}
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className={`
+            text-sm px-3 py-1.5 rounded-md border border-gray-700
+            flex items-center gap-2
+            transition
+            ${
+              isRefreshing
+                ? "text-gray-500 cursor-not-allowed"
+                : "text-gray-300 hover:bg-gray-700 hover:text-white"
+            }
+          `}
         >
-          Refresh
+          {isRefreshing && (
+            <span className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+          )}
+          <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
         </button>
       </div>
 
-      {/* Message types + auto-scroll */}
-      <div className="flex justify-between items-center mb-3">
-
-        {/* Left side: checkboxes */}
+      <div className="flex items-center justify-between mb-3">
+        {/* Message types */}
         <div className="flex items-center gap-6 text-gray-300 text-sm">
           <span>Message types:</span>
 
-          <label className="flex items-center gap-2 cursor-pointer">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
               type="checkbox"
               checked={showInfo}
-              onChange={() => setShowInfo(v => !v)}
+              onChange={() => setShowInfo((v) => !v)}
               className="w-4 h-4"
             />
-            info
+            <span>info</span>
           </label>
 
-          <label className="flex items-center gap-2 cursor-pointer">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
               type="checkbox"
               checked={showError}
-              onChange={() => setShowError(v => !v)}
+              onChange={() => setShowError((v) => !v)}
               className="w-4 h-4"
             />
-            error
+            <span>error</span>
           </label>
         </div>
 
-        {/* Right side: Auto-scroll */}
+        {/* Auto-scroll */}
         <div className="flex items-center gap-3 text-sm text-gray-300">
-          Auto-scroll
-
+          <span>Auto-scroll</span>
           <button
-            onClick={() => setAutoScroll(v => !v)}
+            onClick={() => setAutoScroll((v) => !v)}
             className={`
               relative w-10 h-5 rounded-full transition
               ${autoScroll ? "bg-blue-500" : "bg-gray-600"}
@@ -126,16 +162,15 @@ export default function Logs({
         </div>
       </div>
 
-      {/* Log window */}
       <div
         ref={logContainerRef}
         className="h-64 overflow-y-auto border border-gray-800 rounded-lg p-4 bg-[#11161b]"
       >
-        {filtered.length === 0 && (
-          <div className="text-gray-500 italic text-sm">No logs.</div>
+        {filteredLogs.length === 0 && (
+          <div className="text-gray-500 text-sm italic">No logs.</div>
         )}
 
-        {filtered.map((log, i) => (
+        {filteredLogs.map((log, i) => (
           <LogEntry
             key={i}
             timestamp={log.timestamp}
