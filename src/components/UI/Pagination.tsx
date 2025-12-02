@@ -17,7 +17,7 @@ type PaginationProps = {
         <button
           onClick={onPrev}
           disabled={currentPage === 1}
-          className={`px-4 py-1 rounded-md border border-gray-600 text-gray-300 
+          className={`px-2 py-0.5 rounded-sm text-xs border border-gray-600 text-gray-300 
             transition ${
               currentPage === 1
                 ? "opacity-40 cursor-not-allowed"
@@ -31,7 +31,7 @@ type PaginationProps = {
         <button
           onClick={onNext}
           disabled={currentPage === totalPages}
-          className={`px-4 py-1 rounded-md border border-gray-600 text-gray-300 
+          className={`px-2 py-0.5 rounded-sm text-xs border border-gray-600 text-gray-300 
             transition ${
               currentPage === totalPages
                 ? "opacity-40 cursor-not-allowed"

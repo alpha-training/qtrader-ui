@@ -27,11 +27,11 @@ export default function ProcessRow({
       className="border-b border-gray-800 hover:bg-[#151b20] transition cursor-pointer animate-fadeIn"
       onClick={handleRowClick}
     >
-      <td className="px-4 py-3 font-medium text-white">{process.name}</td>
-      <td className="px-4 py-3 text-gray-300">{process.host}</td>
-      <td className="px-4 py-3 text-gray-300">{process.port}</td>
+      <td className="px-2 py-1.5 font-medium text-white">{process.name}</td>
+      <td className="px-2 py-1.5 text-gray-300">{process.host}</td>
+      <td className="px-2 py-1.5 text-gray-300">{process.port}</td>
 
-      <td className="px-4 py-3">
+      <td className="px-2 py-1.5">
         <div className="flex items-center gap-2">
           <span
             className={`h-3 w-3 rounded-full ${
@@ -42,10 +42,10 @@ export default function ProcessRow({
         </div>
       </td>
 
-      <td className="px-4 py-3 text-gray-300">{process.pid ?? "-"}</td>
-      <td className="px-4 py-3 text-gray-300">{process.mem ?? "-"}</td>
+      <td className="px-2 py-1.5 text-gray-300">{process.pid ?? "-"}</td>
+      <td className="px-2 py-1.5 text-gray-300">{process.mem ?? "-"}</td>
 
-      <td className="px-4 py-3 text-gray-300">
+      <td className="px-2 py-1.5 text-gray-300">
         <FileText
           size={18}
           className="cursor-pointer hover:text-white"
@@ -56,7 +56,7 @@ export default function ProcessRow({
         />
       </td>
 
-      <td className="px-4 py-3">
+      <td className="px-2 py-1.5">
         {isRunning ? (
           <button
             onClick={(e) => {
@@ -64,7 +64,7 @@ export default function ProcessRow({
               onStop(process.name);
             }}
             disabled={isLoading}
-            className={`border px-4 py-1 rounded-md transition
+            className={`border px-2 py-0.5 rounded-sm text-xs transition
               ${
                 isLoading
                   ? "border-orange-900 text-orange-700 cursor-not-allowed"
@@ -80,7 +80,7 @@ export default function ProcessRow({
               onStart(process.name);
             }}
             disabled={isLoading}
-            className={`border px-4 py-1 rounded-md transition
+            className={`border px-2 py-0.5 rounded-sm text-xs transition
               ${
                 isLoading
                   ? "border-green-900 text-green-700 cursor-not-allowed"

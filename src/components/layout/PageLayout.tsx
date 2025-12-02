@@ -33,7 +33,7 @@ export default function PageLayout() {
         <TopNavbar title={title} />
 
         {/* Page content */}
-        <main className="flex-1 overflow-auto px-8 py-6">
+        <main className="flex-1 overflow-auto px-4 py-3">
           <Outlet />
         </main>
 

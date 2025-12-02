@@ -39,7 +39,7 @@ export default function TopNavbar({ title }: TopNavbarProps) {
   }, []);
 
   return (
-    <div className="h-14 border-b border-gray-800 bg-[#0d1116] flex items-center justify-between px-8">
+    <div className="h-12 border-b border-gray-800 bg-[#0d1116] flex items-center justify-between px-8">
       
       {/* LEFT: Page Title */}
       <div className="text-xl font-semibold text-white">

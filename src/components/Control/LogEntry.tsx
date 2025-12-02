@@ -1,8 +1,8 @@
-type LogEntryProps = {
-    timestamp: string;
-    level: "INFO" | "ERROR";
-    message: string;
-  };
+export type LogEntryProps = {
+  timestamp: string;
+  level: "INFO" | "ERROR" | "info" | "error";
+  message: string;
+};
   
   export default function LogEntry({ timestamp, level, message }: LogEntryProps) {
     const color =
