@@ -9,8 +9,12 @@ import {
   Settings,
 } from "lucide-react";
 import SidebarItem from "./SidebarItem";
+import { useTheme } from "../../hooks/useTheme";
+import { Sun, Moon } from "lucide-react";
 
 export default function Sidebar() {
+  const { theme, toggleTheme } = useTheme();
+
   return (
     <aside className="w-56 h-screen bg-[#0f1419] border-r border-gray-800 flex flex-col p-4">
 
@@ -33,6 +37,31 @@ export default function Sidebar() {
         <SidebarItem label="Settings" to="/settings" icon={<Settings size={20} />} />
 
       </nav>
+      {/* Light Mode Toggle */}
+      <div className="mt-auto flex items-center gap-2 px-2 pt-6">
+        {theme === "dark" ? (
+          <Moon className="w-6 h-6 text-gray-300" />
+        ) : (
+          <Sun className="w-6 h-6 text-yellow-500" />
+        )}
+
+        <span className="text-sm font-medium text-gray-300">
+          Light Mode
+        </span>
+
+        <button
+          onClick={toggleTheme}
+          className={`ml-auto relative w-12 h-6 rounded-full transition
+            ${theme === "light" ? "bg-blue-500" : "bg-gray-600"}
+          `}
+        >
+          <span
+            className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition
+              ${theme === "light" ? "translate-x-6" : ""}
+            `}
+          />
+        </button>
+      </div>
     </aside>
   );
 }

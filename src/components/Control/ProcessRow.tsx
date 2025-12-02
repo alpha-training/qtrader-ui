@@ -38,7 +38,7 @@ export default function ProcessRow({
               isRunning ? "bg-green-500" : "bg-red-500"
             }`}
           />
-          <span className="capitalize text-gray-300">{process.status}</span>
+          <span className="text-gray-300">{process.status}</span>
         </div>
       </td>
 
