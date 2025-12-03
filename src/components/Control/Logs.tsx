@@ -2,113 +2,75 @@
 import { useEffect, useRef, useState } from "react";
 import LogEntry from "./LogEntry";
 import { RotateCw } from "lucide-react";
+import { useLogs } from "../../context/LogContext";
+import { useProcesses } from "../../context/ProcessContext";
 
 type LogsProps = {
   selectedChannel: string;
   onChannelChange: (ch: string) => void;
-  processes: { name: string }[];
 };
 
-export default function Logs({
-  selectedChannel,
-  onChannelChange,
-  processes,
-}: LogsProps) {
-  // MOCKED LOG DATA (will be replaced with websocket later)
-  const [logs, setLogs] = useState([
-    { timestamp: "09:12:14", level: "INFO",  message: "heartbeat ok", channel: "rdb1" },
-    { timestamp: "09:12:14", level: "INFO",  message: "received market snapshot for AAPL", channel: "pxfeed" },
-    { timestamp: "09:12:15", level: "INFO",  message: "trade matched: AAPL 100 @ 191.22", channel: "tp1" },
-    { timestamp: "09:12:16", level: "ERROR", message: "connection timeout to venue CME", channel: "tp2" },
-    { timestamp: "09:12:17", level: "INFO",  message: "writing batch to hdb", channel: "hdb1" },
-    { timestamp: "09:12:18", level: "INFO",  message: "order updated: #482913 status=FILLED", channel: "oms" },
-    { timestamp: "09:12:19", level: "INFO",  message: "processing 245 tick updates", channel: "pxfeed" },
-    { timestamp: "09:12:20", level: "ERROR", message: "wdb2 out of sync with rdb1", channel: "wdb2" },
-    { timestamp: "09:12:21", level: "INFO",  message: "risk check passed for order #482913", channel: "risk" },
-    { timestamp: "09:12:22", level: "INFO",  message: "audit log write successful", channel: "audit" },
-    { timestamp: "09:12:23", level: "INFO",  message: "publishing L2 updates for ETH-USD", channel: "pxfeed" },
-    { timestamp: "09:12:24", level: "ERROR", message: "disk threshold exceeded on hdb2", channel: "hdb2" },
-    { timestamp: "09:12:25", level: "INFO",  message: "rdb1 latency spike detected (4.2ms)", channel: "rdb1" },
-    { timestamp: "09:12:26", level: "INFO",  message: "cleanup completed (took 183ms)", channel: "tp1" },
-  ]);
+export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
+  const { logs } = useLogs();
+  const { processes } = useProcesses();
 
-  // CHANNEL ORDER MATCHES PROCESS TABLE
-  const processOrder = (processes ?? []).map(p => p.name);
+  const processOrder = processes.map(p => p.name);
+  const loggedChannels = Array.from(new Set(logs.map(l => l.channel)));
 
-  const logChannels = Array.from(new Set(logs.map(log => log.channel)));
+  const channels = [
+    "All",
+    ...processOrder,
+    ...loggedChannels.filter(ch => !processOrder.includes(ch)), // audit/system, etc.
+  ];
 
-  const orderedChannels = processOrder.filter(name =>
-    logChannels.includes(name)
-  );
-  const extraChannels = logChannels.filter(
-    ch => !processOrder.includes(ch)
-  );
-
-  const channels = ["All", ...orderedChannels, ...extraChannels];
-
-  // UI STATE
   const [showInfo, setShowInfo] = useState(true);
   const [showError, setShowError] = useState(true);
   const [autoScroll, setAutoScroll] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const logContainerRef = useRef<HTMLDivElement>(null);
+  const logRef = useRef<HTMLDivElement>(null);
 
-  // FILTER LOGS
   const filteredLogs = logs.filter(log => {
-    const matchesChannel =
+    const matchChannel =
       selectedChannel === "All" || log.channel === selectedChannel;
 
-    const matchesLevel =
+    const matchLevel =
       (log.level === "INFO" && showInfo) ||
       (log.level === "ERROR" && showError);
 
-    return matchesChannel && matchesLevel;
+    return matchChannel && matchLevel;
   });
 
-  // AUTO-SCROLL
   useEffect(() => {
-    if (autoScroll && logContainerRef.current) {
-      logContainerRef.current.scrollTop =
-        logContainerRef.current.scrollHeight;
+    if (autoScroll && logRef.current) {
+      logRef.current.scrollTop = logRef.current.scrollHeight;
     }
   }, [filteredLogs, autoScroll]);
 
-  // REFRESH HANDLER
-  const refreshLogs = async () => {
-    setIsRefreshing(true);
-
-    await new Promise(res => setTimeout(res, 600));
-
-    setLogs(prev => [
-      ...prev,
-      {
-        timestamp: new Date().toLocaleTimeString("en-GB"),
-        level: "INFO",
-        message: "log refreshed",
-        channel: selectedChannel === "All" ? "system" : selectedChannel,
-      },
-    ]);
-
-    setIsRefreshing(false);
+  const refresh = async () => {
+    setRefreshing(true);
+    await new Promise(r => setTimeout(r, 600));
+    setRefreshing(false);
   };
 
   return (
     <div className="mt-4">
-      {/* TITLE + REFRESH */}
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-base font-semibold">Logs:</h2>
 
         <button
-          onClick={refreshLogs}
-          disabled={isRefreshing}
-          className={`
+          onClick={refresh}
+          disabled={refreshing}
+          className="
             flex items-center gap-1 px-2 py-0.5 text-xs rounded-sm border
             border-gray-600 text-gray-200 hover:bg-gray-700 transition
-            ${isRefreshing ? "opacity-50 cursor-not-allowed" : ""}
-          `}
+            disabled:opacity-50
+          "
         >
-          <RotateCw size={14} className={isRefreshing ? "animate-spin" : ""} />
+          <RotateCw
+            size={14}
+            className={refreshing ? "animate-spin" : ""}
+          />
           Refresh
         </button>
       </div>
@@ -136,7 +98,7 @@ export default function Logs({
         })}
       </div>
 
-      {/* FILTERS + AUTO SCROLL */}
+      {/* FILTERS & AUTO SCROLL */}
       <div className="flex items-center gap-4 text-gray-300 mb-2">
         <label className="flex items-center gap-1 text-xs">
           <input
@@ -177,14 +139,13 @@ export default function Logs({
 
       {/* LOG WINDOW */}
       <div
-        ref={logContainerRef}
+        ref={logRef}
         className="h-64 overflow-y-auto border border-gray-800 rounded-md p-2 bg-[#11161b] text-sm"
       >
         {filteredLogs.length === 0 ? (
           <div className="text-gray-500 text-xs italic">No logs.</div>
         ) : (
-          filteredLogs.map((log, i) => <LogEntry key={i} {...log} level={log.level.toUpperCase() as "INFO" | "ERROR"} />
-          )
+          filteredLogs.map((log, i) => <LogEntry key={i} {...log} />)
         )}
       </div>
     </div>

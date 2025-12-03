@@ -9,8 +9,9 @@ import {
   Settings,
 } from "lucide-react";
 import SidebarItem from "./SidebarItem";
-import { useTheme } from "../../hooks/useTheme";
+//mport { useTheme } from "../../hooks/useTheme";
 // import { Sun, Moon } from "lucide-react";
+import logo from "../../assets/alpha-kdb-logo.png";
 
 export default function Sidebar() {
   //const { theme, toggleTheme } = useTheme();
@@ -20,8 +21,8 @@ export default function Sidebar() {
 
       {/* Logo */}
       <div className="flex items-center gap-3 mb-8 px-2">
-        <img src="/vite.svg" className="w-8 h-8" />
-        <span className="text-xl font-semibold">qtrader</span>
+        <img src={logo} className="h-8 w-auto object-contain"loading="eager" alt="AlphaKDB logo" />
+       {/*  <span className="text-xl font-semibold">qtrader</span> */}
       </div>
 
       {/* Navigation */}

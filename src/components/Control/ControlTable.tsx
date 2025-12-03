@@ -10,176 +10,70 @@ import ConfirmStopAllModal from "../UI/ConfirmStopAllModal";
 import { usePrefs } from "../../hooks/usePrefs";
 import { useProcesses } from "../../context/ProcessContext";
 
-type ControlTableProps = {
+type Props = {
   selectedChannel: string;
   onSelectChannel: (name: string) => void;
 };
 
-export default function ControlTable({
-  selectedChannel,
-  onSelectChannel,
-}: ControlTableProps) {
+export default function ControlTable({ selectedChannel, onSelectChannel }: Props) {
   const { prefs } = usePrefs();
-  const { processes, setProcesses } = useProcesses();
+  const { processes, start, stop, startAll, stopAll } = useProcesses();
 
-  // modals
   const [startModalOpen, setStartModalOpen] = useState(false);
   const [stopModalOpen, setStopModalOpen] = useState(false);
   const [startAllModalOpen, setStartAllModalOpen] = useState(false);
   const [stopAllModalOpen, setStopAllModalOpen] = useState(false);
+
   const [selectedProcess, setSelectedProcess] = useState<string | null>(null);
 
-  // pagination
-  const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
-  const totalPages = Math.ceil(processes.length / pageSize) || 1;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.ceil(processes.length / pageSize);
 
-  const paginated = processes.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
+  const visible = processes.slice((page - 1) * pageSize, page * pageSize);
 
-  // helpers
-  const startProcess = (name: string) => {
-    setProcesses(prev =>
-      prev.map(p =>
-        p.name === name
-          ? {
-              ...p,
-              status: "up",
-              pid: p.pid ?? Math.floor(1000 + Math.random() * 9000),
-            }
-          : p
-      )
-    );
-  };
-
-  const stopProcess = (name: string) => {
-    setProcesses(prev =>
-      prev.map(p =>
-        p.name === name ? { ...p, status: "down", pid: null } : p
-      )
-    );
-  };
-
-  const startAllProcesses = () => {
-    setProcesses(prev =>
-      prev.map(p =>
-        p.status === "down"
-          ? {
-              ...p,
-              status: "up",
-              pid: p.pid ?? Math.floor(1000 + Math.random() * 9000),
-            }
-          : p
-      )
-    );
-  };
-
-  const stopAllProcesses = () => {
-    setProcesses(prev =>
-      prev.map(p =>
-        p.status === "up" ? { ...p, status: "down", pid: null } : p
-      )
-    );
-  };
-
-  const allRunning = processes.length > 0 && processes.every(p => p.status === "up");
-  const allStopped = processes.length > 0 && processes.every(p => p.status === "down");
-
-  // handlers (prefs)
   const handleStart = (name: string) => {
     if (prefs.confirmStart) {
       setSelectedProcess(name);
       setStartModalOpen(true);
-    } else {
-      startProcess(name);
-    }
+    } else start(name);
   };
 
   const handleStop = (name: string) => {
     if (prefs.confirmStop) {
       setSelectedProcess(name);
       setStopModalOpen(true);
-    } else {
-      stopProcess(name);
-    }
-  };
-
-  const handleStartAll = () => {
-    if (prefs.confirmStartAll) {
-      setStartAllModalOpen(true);
-    } else {
-      startAllProcesses();
-    }
-  };
-
-  const handleStopAll = () => {
-    if (prefs.confirmStopAll) {
-      setStopAllModalOpen(true);
-    } else {
-      stopAllProcesses();
-    }
-  };
-
-  const confirmStart = () => {
-    if (selectedProcess) startProcess(selectedProcess);
-    setStartModalOpen(false);
-    setSelectedProcess(null);
-  };
-
-  const confirmStop = () => {
-    if (selectedProcess) stopProcess(selectedProcess);
-    setStopModalOpen(false);
-    setSelectedProcess(null);
-  };
-
-  const confirmStartAll = () => {
-    startAllProcesses();
-    setStartAllModalOpen(false);
-  };
-
-  const confirmStopAll = () => {
-    stopAllProcesses();
-    setStopAllModalOpen(false);
+    } else stop(name);
   };
 
   return (
     <div className="mb-6">
-      {/* Buttons */}
+      {/* START/STOP ALL */}
       <div className="flex justify-end mb-3 gap-2">
         <button
-          onClick={handleStartAll}
-          disabled={allRunning}
-          className={`
-            px-3 py-1 text-xs rounded border
-            ${
-              allRunning
-                ? "border-green-900 text-green-700 cursor-not-allowed"
-                : "border-green-600 text-green-400 hover:bg-green-900/40"
-            }
-          `}
+          onClick={() =>
+            prefs.confirmStartAll
+              ? setStartAllModalOpen(true)
+              : startAll()
+          }
+          className="px-3 py-1 text-xs rounded border border-green-600 text-green-400"
         >
           Start all
         </button>
 
         <button
-          onClick={handleStopAll}
-          disabled={allStopped}
-          className={`
-            px-3 py-1 text-xs rounded border
-            ${
-              allStopped
-                ? "border-amber-900 text-amber-700 cursor-not-allowed"
-                : "border-amber-600 text-amber-400 hover:bg-amber-900/40"
-            }
-          `}
+          onClick={() =>
+            prefs.confirmStopAll
+              ? setStopAllModalOpen(true)
+              : stopAll()
+          }
+          className="px-3 py-1 text-xs rounded border border-amber-600 text-amber-400"
         >
           Stop all
         </button>
       </div>
 
-      {/* Table */}
+      {/* TABLE */}
       <div className="overflow-hidden rounded-lg border border-gray-800">
         <table className="w-full text-left text-sm">
           <thead className="bg-[#151b20] text-gray-400 text-xs">
@@ -196,7 +90,7 @@ export default function ControlTable({
           </thead>
 
           <tbody>
-            {paginated.map(p => (
+            {visible.map((p) => (
               <ProcessRow
                 key={p.name}
                 process={p}
@@ -212,38 +106,50 @@ export default function ControlTable({
 
       <div className="flex justify-end">
         <Pagination
-          currentPage={currentPage}
+          currentPage={page}
           totalPages={totalPages}
-          onPrev={() => setCurrentPage(p => Math.max(1, p - 1))}
-          onNext={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+          onPrev={() => setPage((p) => Math.max(1, p - 1))}
+          onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
         />
       </div>
 
-      {/* Modals */}
+      {/* MODALS */}
       <ConfirmStartModal
         isOpen={startModalOpen}
         processName={selectedProcess}
+        onConfirm={() => {
+          if (selectedProcess) start(selectedProcess);
+          setStartModalOpen(false);
+        }}
         onClose={() => setStartModalOpen(false)}
-        onConfirm={confirmStart}
       />
 
       <ConfirmStopModal
         isOpen={stopModalOpen}
         processName={selectedProcess}
+        onConfirm={() => {
+          if (selectedProcess) stop(selectedProcess);
+          setStopModalOpen(false);
+        }}
         onClose={() => setStopModalOpen(false)}
-        onConfirm={confirmStop}
       />
 
       <ConfirmStartAllModal
         isOpen={startAllModalOpen}
+        onConfirm={() => {
+          startAll();
+          setStartAllModalOpen(false);
+        }}
         onClose={() => setStartAllModalOpen(false)}
-        onConfirm={confirmStartAll}
       />
 
       <ConfirmStopAllModal
         isOpen={stopAllModalOpen}
+        onConfirm={() => {
+          stopAll();
+          setStopAllModalOpen(false);
+        }}
         onClose={() => setStopAllModalOpen(false)}
-        onConfirm={confirmStopAll}
       />
     </div>
   );

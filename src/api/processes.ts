@@ -1,23 +1,52 @@
 // src/api/processes.ts
+import { apiGet, apiPost } from "./client";
 import type { Process } from "../types/Process";
 
-const API = "http://localhost:3000/api";
-
-async function safeFetch(url: string, options?: RequestInit) {
+export async function fetchProcesses(): Promise<Process[]> {
   try {
-    const res = await fetch(url, options);
-    if (!res.ok) throw new Error("Bad response");
-    return await res.json();
-  } catch (err) {
-    console.warn("⚠ API offline → using local mock data");
-    return null; // <- IMPORTANT: never throw
+    return await apiGet("/processes");
+  } catch {
+    return mockProcesses;
   }
 }
 
-// ---------------------------------------------------------------------------
-// Mock data used when backend is offline
-// ---------------------------------------------------------------------------
-const mockProcesses: Process[] = [
+export async function startProcessAPI(name: string) {
+  try {
+    return await apiPost(`/processes/${name}/start`);
+  } catch {
+    console.warn("Mock start:", name);
+    return { success: true };
+  }
+}
+
+export async function stopProcessAPI(name: string) {
+  try {
+    return await apiPost(`/processes/${name}/stop`);
+  } catch {
+    console.warn("Mock stop:", name);
+    return { success: true };
+  }
+}
+
+export async function startAllAPI() {
+  try {
+    return await apiPost("/processes/start-all");
+  } catch {
+    console.warn("Mock start-all");
+    return { success: true };
+  }
+}
+
+export async function stopAllAPI() {
+  try {
+    return await apiPost("/processes/stop-all");
+  } catch {
+    console.warn("Mock stop-all");
+    return { success: true };
+  }
+}
+
+export const mockProcesses: Process[] = [
   { name: "tp1", host: "localhost", port: 5010, status: "up" },
   { name: "tp2", host: "localhost", port: 5011, status: "down" },
   { name: "rdb1", host: "localhost", port: 5020, status: "up" },
@@ -29,27 +58,3 @@ const mockProcesses: Process[] = [
   { name: "pxfeed", host: "localhost", port: 5050, status: "up" },
   { name: "oms", host: "localhost", port: 5060, status: "up" },
 ];
-
-// ---------------------------------------------------------------------------
-// API FUNCTIONS
-// ---------------------------------------------------------------------------
-export async function fetchProcesses(): Promise<Process[]> {
-  const data = await safeFetch(`${API}/processes`);
-  return data ?? mockProcesses;
-}
-
-export async function startProcessAPI(name: string): Promise<void> {
-  await safeFetch(`${API}/processes/${name}/start`, { method: "POST" });
-}
-
-export async function stopProcessAPI(name: string): Promise<void> {
-  await safeFetch(`${API}/processes/${name}/stop`, { method: "POST" });
-}
-
-export async function startAllAPI(): Promise<void> {
-  await safeFetch(`${API}/processes/start-all`, { method: "POST" });
-}
-
-export async function stopAllAPI(): Promise<void> {
-  await safeFetch(`${API}/processes/stop-all`, { method: "POST" });
-}
