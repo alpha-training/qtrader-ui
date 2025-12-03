@@ -183,7 +183,8 @@ export default function Logs({
         {filteredLogs.length === 0 ? (
           <div className="text-gray-500 text-xs italic">No logs.</div>
         ) : (
-          filteredLogs.map((log, i) => <LogEntry key={i} {...log} />)
+          filteredLogs.map((log, i) => <LogEntry key={i} {...log} level={log.level.toUpperCase() as "INFO" | "ERROR"} />
+          )
         )}
       </div>
     </div>
