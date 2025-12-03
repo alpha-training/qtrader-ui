@@ -7,7 +7,6 @@ import ConfirmStartModal from "../UI/ConfirmStartModal";
 import ConfirmStopModal from "../UI/ConfirmStopModal";
 import ConfirmStartAllModal from "../UI/ConfirmStartAllModal";
 import ConfirmStopAllModal from "../UI/ConfirmStopAllModal";
-
 import { usePrefs } from "../../hooks/usePrefs";
 import { useProcesses } from "../../context/ProcessContext";
 
@@ -23,25 +22,24 @@ export default function ControlTable({
   const { prefs } = usePrefs();
   const { processes, setProcesses } = useProcesses();
 
-  // Modals
+  // modals
   const [startModalOpen, setStartModalOpen] = useState(false);
   const [stopModalOpen, setStopModalOpen] = useState(false);
   const [startAllModalOpen, setStartAllModalOpen] = useState(false);
   const [stopAllModalOpen, setStopAllModalOpen] = useState(false);
   const [selectedProcess, setSelectedProcess] = useState<string | null>(null);
 
-  // Pagination
+  // pagination
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
-  const totalPages = Math.ceil(processes.length / pageSize);
+  const totalPages = Math.ceil(processes.length / pageSize) || 1;
 
   const paginated = processes.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize
   );
 
-  // --- Helpers to mutate processes ---
-
+  // helpers
   const startProcess = (name: string) => {
     setProcesses(prev =>
       prev.map(p =>
@@ -89,8 +87,7 @@ export default function ControlTable({
   const allRunning = processes.length > 0 && processes.every(p => p.status === "up");
   const allStopped = processes.length > 0 && processes.every(p => p.status === "down");
 
-  // --- Handlers with preferences ---
-
+  // handlers (prefs)
   const handleStart = (name: string) => {
     if (prefs.confirmStart) {
       setSelectedProcess(name);
@@ -125,8 +122,6 @@ export default function ControlTable({
     }
   };
 
-  // --- Confirm modal callbacks ---
-
   const confirmStart = () => {
     if (selectedProcess) startProcess(selectedProcess);
     setStartModalOpen(false);
@@ -151,7 +146,7 @@ export default function ControlTable({
 
   return (
     <div className="mb-6">
-      {/* Start / Stop all buttons */}
+      {/* Buttons */}
       <div className="flex justify-end mb-3 gap-2">
         <button
           onClick={handleStartAll}
@@ -215,7 +210,6 @@ export default function ControlTable({
         </table>
       </div>
 
-      {/* Pagination */}
       <div className="flex justify-end">
         <Pagination
           currentPage={currentPage}

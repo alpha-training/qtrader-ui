@@ -1,31 +1,21 @@
 // src/components/control/Logs.tsx
 import { useEffect, useRef, useState } from "react";
-import { RotateCw } from "lucide-react";
 import LogEntry from "./LogEntry";
-import { useProcesses } from "../../context/ProcessContext";
+import { RotateCw } from "lucide-react";
 
 type LogsProps = {
   selectedChannel: string;
   onChannelChange: (ch: string) => void;
-};
-
-type Level = "INFO" | "ERROR";
-
-type LogItem = {
-  timestamp: string;
-  level: Level;
-  message: string;
-  channel: string;
+  processes: { name: string }[];
 };
 
 export default function Logs({
   selectedChannel,
   onChannelChange,
+  processes,
 }: LogsProps) {
-  const { processes } = useProcesses();
-
-  // --- Mock log data (replace with API later) ---
-  const [logs, setLogs] = useState<LogItem[]>([
+  // MOCKED LOG DATA (will be replaced with websocket later)
+  const [logs, setLogs] = useState([
     { timestamp: "09:12:14", level: "INFO",  message: "heartbeat ok", channel: "rdb1" },
     { timestamp: "09:12:14", level: "INFO",  message: "received market snapshot for AAPL", channel: "pxfeed" },
     { timestamp: "09:12:15", level: "INFO",  message: "trade matched: AAPL 100 @ 191.22", channel: "tp1" },
@@ -42,21 +32,21 @@ export default function Logs({
     { timestamp: "09:12:26", level: "INFO",  message: "cleanup completed (took 183ms)", channel: "tp1" },
   ]);
 
-  // --- Channels ordered to match process table ---
-  const processOrder = processes.map(p => p.name);
-  const logChannels = Array.from(new Set(logs.map(l => l.channel)));
+  // CHANNEL ORDER MATCHES PROCESS TABLE
+  const processOrder = (processes ?? []).map(p => p.name);
+
+  const logChannels = Array.from(new Set(logs.map(log => log.channel)));
 
   const orderedChannels = processOrder.filter(name =>
     logChannels.includes(name)
   );
-
   const extraChannels = logChannels.filter(
     ch => !processOrder.includes(ch)
   );
 
   const channels = ["All", ...orderedChannels, ...extraChannels];
 
-  // --- UI state ---
+  // UI STATE
   const [showInfo, setShowInfo] = useState(true);
   const [showError, setShowError] = useState(true);
   const [autoScroll, setAutoScroll] = useState(true);
@@ -64,7 +54,7 @@ export default function Logs({
 
   const logContainerRef = useRef<HTMLDivElement>(null);
 
-  // --- Filter logs ---
+  // FILTER LOGS
   const filteredLogs = logs.filter(log => {
     const matchesChannel =
       selectedChannel === "All" || log.channel === selectedChannel;
@@ -76,7 +66,7 @@ export default function Logs({
     return matchesChannel && matchesLevel;
   });
 
-  // --- Auto scroll ---
+  // AUTO-SCROLL
   useEffect(() => {
     if (autoScroll && logContainerRef.current) {
       logContainerRef.current.scrollTop =
@@ -84,7 +74,7 @@ export default function Logs({
     }
   }, [filteredLogs, autoScroll]);
 
-  // --- Refresh handler ---
+  // REFRESH HANDLER
   const refreshLogs = async () => {
     setIsRefreshing(true);
 
@@ -103,10 +93,9 @@ export default function Logs({
     setIsRefreshing(false);
   };
 
-  // --- Render ---
   return (
     <div className="mt-4">
-      {/* Title + Refresh */}
+      {/* TITLE + REFRESH */}
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-base font-semibold">Logs:</h2>
 
@@ -124,7 +113,7 @@ export default function Logs({
         </button>
       </div>
 
-      {/* Channel tabs */}
+      {/* CHANNEL TABS */}
       <div className="flex gap-4 text-gray-400 mb-3 flex-wrap">
         {channels.map(ch => {
           const active = selectedChannel === ch;
@@ -147,7 +136,7 @@ export default function Logs({
         })}
       </div>
 
-      {/* Filters + auto-scroll */}
+      {/* FILTERS + AUTO SCROLL */}
       <div className="flex items-center gap-4 text-gray-300 mb-2">
         <label className="flex items-center gap-1 text-xs">
           <input
@@ -186,7 +175,7 @@ export default function Logs({
         </div>
       </div>
 
-      {/* Log window */}
+      {/* LOG WINDOW */}
       <div
         ref={logContainerRef}
         className="h-64 overflow-y-auto border border-gray-800 rounded-md p-2 bg-[#11161b] text-sm"
