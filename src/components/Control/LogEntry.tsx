@@ -1,23 +1,19 @@
-export type LogEntryProps = {
+type LogEntryProps = {
   timestamp: string;
-  level: "INFO" | "ERROR" | "info" | "error";
+  level: "INFO" | "ERROR";        // <-- must match your logs level values
   message: string;
+  channel: string;
 };
-  
-  export default function LogEntry({ timestamp, level, message }: LogEntryProps) {
-    const color =
-      level === "INFO"
-        ? "text-blue-400"
-        : level === "ERROR"
-        ? "text-red-400"
-        : "text-gray-300";
-  
-    return (
-      <div className="font-mono text-sm text-gray-200">
-        <span className="text-gray-400">[{timestamp}] </span>
-        <span className={color}>[{level}]</span>{" "}
-        <span className="text-gray-200">{message}</span>
-      </div>
-    );
-  }
-  
+
+export default function LogEntry({ timestamp, level, message }: LogEntryProps) {
+  const color =
+    level === "ERROR"
+      ? "text-red-400"
+      : "text-blue-400";
+
+  return (
+    <div className="whitespace-pre text-gray-200 text-xs font-mono">
+      [{timestamp}] <span className={color}>[{level}]</span> {message}
+    </div>
+  );
+}

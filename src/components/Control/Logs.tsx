@@ -1,13 +1,62 @@
+// src/components/control/Logs.tsx
 import { useEffect, useRef, useState } from "react";
-import LogEntry from "./LogEntry";
 import { RotateCw } from "lucide-react";
+import LogEntry from "./LogEntry";
+import { useProcesses } from "../../context/ProcessContext";
 
 type LogsProps = {
   selectedChannel: string;
   onChannelChange: (ch: string) => void;
 };
 
-export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
+type Level = "INFO" | "ERROR";
+
+type LogItem = {
+  timestamp: string;
+  level: Level;
+  message: string;
+  channel: string;
+};
+
+export default function Logs({
+  selectedChannel,
+  onChannelChange,
+}: LogsProps) {
+  const { processes } = useProcesses();
+
+  // --- Mock log data (replace with API later) ---
+  const [logs, setLogs] = useState<LogItem[]>([
+    { timestamp: "09:12:14", level: "INFO",  message: "heartbeat ok", channel: "rdb1" },
+    { timestamp: "09:12:14", level: "INFO",  message: "received market snapshot for AAPL", channel: "pxfeed" },
+    { timestamp: "09:12:15", level: "INFO",  message: "trade matched: AAPL 100 @ 191.22", channel: "tp1" },
+    { timestamp: "09:12:16", level: "ERROR", message: "connection timeout to venue CME", channel: "tp2" },
+    { timestamp: "09:12:17", level: "INFO",  message: "writing batch to hdb", channel: "hdb1" },
+    { timestamp: "09:12:18", level: "INFO",  message: "order updated: #482913 status=FILLED", channel: "oms" },
+    { timestamp: "09:12:19", level: "INFO",  message: "processing 245 tick updates", channel: "pxfeed" },
+    { timestamp: "09:12:20", level: "ERROR", message: "wdb2 out of sync with rdb1", channel: "wdb2" },
+    { timestamp: "09:12:21", level: "INFO",  message: "risk check passed for order #482913", channel: "risk" },
+    { timestamp: "09:12:22", level: "INFO",  message: "audit log write successful", channel: "audit" },
+    { timestamp: "09:12:23", level: "INFO",  message: "publishing L2 updates for ETH-USD", channel: "pxfeed" },
+    { timestamp: "09:12:24", level: "ERROR", message: "disk threshold exceeded on hdb2", channel: "hdb2" },
+    { timestamp: "09:12:25", level: "INFO",  message: "rdb1 latency spike detected (4.2ms)", channel: "rdb1" },
+    { timestamp: "09:12:26", level: "INFO",  message: "cleanup completed (took 183ms)", channel: "tp1" },
+  ]);
+
+  // --- Channels ordered to match process table ---
+  const processOrder = processes.map(p => p.name);
+  const logChannels = Array.from(new Set(logs.map(l => l.channel)));
+
+  const orderedChannels = processOrder.filter(name =>
+    logChannels.includes(name)
+  );
+
+  const extraChannels = logChannels.filter(
+    ch => !processOrder.includes(ch)
+  );
+
+  const channels = ["All", ...orderedChannels, ...extraChannels];
+
+  // --- UI state ---
   const [showInfo, setShowInfo] = useState(true);
   const [showError, setShowError] = useState(true);
   const [autoScroll, setAutoScroll] = useState(true);
@@ -15,36 +64,8 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
 
   const logContainerRef = useRef<HTMLDivElement>(null);
 
-  // -------------------------------
-  // MOCKED LOG DATA (Replace with API later)
-  // -------------------------------
-  const [logs, setLogs] = useState([
-    { timestamp: "09:12:14", level: "INFO", message: "heartbeat ok", channel: "rdb1" },
-    { timestamp: "09:12:14", level: "INFO", message: "received market snapshot for AAPL", channel: "pxfeed" },
-    { timestamp: "09:12:15", level: "INFO", message: "trade matched: AAPL 100 @ 191.22", channel: "tp1" },
-    { timestamp: "09:12:16", level: "ERROR", message: "connection timeout to venue CME", channel: "tp2" },
-    { timestamp: "09:12:17", level: "INFO", message: "writing batch to hdb", channel: "hdb1" },
-    { timestamp: "09:12:18", level: "INFO", message: "order updated: #482913 status=FILLED", channel: "oms" },
-    { timestamp: "09:12:19", level: "INFO", message: "processing 245 tick updates", channel: "pxfeed" },
-    { timestamp: "09:12:20", level: "ERROR", message: "wdb2 out of sync with rdb1", channel: "wdb2" },
-    { timestamp: "09:12:21", level: "INFO", message: "risk check passed for order #482913", channel: "risk" },
-    { timestamp: "09:12:22", level: "INFO", message: "audit log write successful", channel: "audit" },
-    { timestamp: "09:12:23", level: "INFO", message: "publishing L2 updates for ETH-USD", channel: "pxfeed" },
-    { timestamp: "09:12:24", level: "ERROR", message: "disk threshold exceeded on hdb2", channel: "hdb2" },
-    { timestamp: "09:12:25", level: "INFO", message: "rdb1 latency spike detected (4.2ms)", channel: "rdb1" },
-    { timestamp: "09:12:26", level: "INFO", message: "cleanup completed (took 183ms)", channel: "tp1" },
-  ]);
-
-  // -------------------------------
-  // AUTO-GENERATE CHANNEL LIST
-  // -------------------------------
-  const uniqueChannels = Array.from(new Set(logs.map((l) => l.channel)));
-  const channels = ["All", ...uniqueChannels];
-
-  // -------------------------------
-  // FILTERED LOG DATA
-  // -------------------------------
-  const filteredLogs = logs.filter((log) => {
+  // --- Filter logs ---
+  const filteredLogs = logs.filter(log => {
     const matchesChannel =
       selectedChannel === "All" || log.channel === selectedChannel;
 
@@ -55,9 +76,7 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
     return matchesChannel && matchesLevel;
   });
 
-  // -------------------------------
-  // AUTO-SCROLL BEHAVIOR
-  // -------------------------------
+  // --- Auto scroll ---
   useEffect(() => {
     if (autoScroll && logContainerRef.current) {
       logContainerRef.current.scrollTop =
@@ -65,14 +84,13 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
     }
   }, [filteredLogs, autoScroll]);
 
-  // -------------------------------
-  // REFRESH BUTTON ACTION
-  // -------------------------------
+  // --- Refresh handler ---
   const refreshLogs = async () => {
     setIsRefreshing(true);
-    await new Promise((res) => setTimeout(res, 600));
 
-    setLogs((prev) => [
+    await new Promise(res => setTimeout(res, 600));
+
+    setLogs(prev => [
       ...prev,
       {
         timestamp: new Date().toLocaleTimeString("en-GB"),
@@ -85,13 +103,10 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
     setIsRefreshing(false);
   };
 
-  // -------------------------------
-  // RENDER
-  // -------------------------------
+  // --- Render ---
   return (
     <div className="mt-4">
-
-      {/* TITLE + REFRESH */}
+      {/* Title + Refresh */}
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-base font-semibold">Logs:</h2>
 
@@ -109,9 +124,9 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
         </button>
       </div>
 
-      {/* CHANNEL TABS */}
-      <div className="flex gap-4 text-gray-400 mb-3">
-        {channels.map((ch) => {
+      {/* Channel tabs */}
+      <div className="flex gap-4 text-gray-400 mb-3 flex-wrap">
+        {channels.map(ch => {
           const active = selectedChannel === ch;
           return (
             <button
@@ -119,9 +134,11 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
               onClick={() => onChannelChange(ch)}
               className={`
                 text-xs transition
-                ${active
-                  ? "text-blue-400 font-semibold underline underline-offset-4"
-                  : "text-gray-400 hover:text-white"}
+                ${
+                  active
+                    ? "text-blue-400 font-semibold underline underline-offset-4"
+                    : "text-gray-400 hover:text-white"
+                }
               `}
             >
               {ch}
@@ -130,14 +147,13 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
         })}
       </div>
 
-      {/* FILTERS + AUTOSCROLL */}
+      {/* Filters + auto-scroll */}
       <div className="flex items-center gap-4 text-gray-300 mb-2">
-
         <label className="flex items-center gap-1 text-xs">
           <input
             type="checkbox"
             checked={showInfo}
-            onChange={(e) => setShowInfo(e.target.checked)}
+            onChange={e => setShowInfo(e.target.checked)}
           />
           info
         </label>
@@ -146,12 +162,11 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
           <input
             type="checkbox"
             checked={showError}
-            onChange={(e) => setShowError(e.target.checked)}
+            onChange={e => setShowError(e.target.checked)}
           />
           error
         </label>
 
-        {/* Auto-scroll Toggle */}
         <div className="flex items-center gap-1 ml-auto text-xs">
           Auto-scroll
           <button
@@ -171,7 +186,7 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
         </div>
       </div>
 
-      {/* LOG WINDOW */}
+      {/* Log window */}
       <div
         ref={logContainerRef}
         className="h-64 overflow-y-auto border border-gray-800 rounded-md p-2 bg-[#11161b] text-sm"
