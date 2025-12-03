@@ -17,8 +17,8 @@ export default function ControlPage() {
       <Logs
         selectedChannel={selectedChannel}
         onChannelChange={setSelectedChannel}
-        processes={processes}
       />
+
     </>
   );
 }

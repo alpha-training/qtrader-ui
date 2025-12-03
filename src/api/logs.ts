@@ -2,25 +2,24 @@
 import type { Process } from "../types/Process";
 import type { LogEntry } from "../types/LogEntry";
 
-// MOCK WEBSOCKET STREAM
 export function connectLogStreamMock(
   processes: Process[],
   emit: (log: LogEntry) => void
 ) {
   console.warn("Mock WS logs enabled");
 
-  // Emit one initial log per process
-  processes.forEach(p => {
+  // Emit initial log for each process
+  processes.forEach((p) =>
     emit({
       timestamp: new Date().toISOString(),
       level: "INFO",
       message: `Initial heartbeat for ${p.name}`,
       channel: p.name,
-    });
-  });
+    })
+  );
 
   const interval = setInterval(() => {
-    processes.forEach(p => {
+    processes.forEach((p) => {
       const isError = Math.random() < 0.15;
 
       emit({
