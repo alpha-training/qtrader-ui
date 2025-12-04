@@ -15,8 +15,8 @@ import wsClient from "./services/wsClient";
 function App() {
   useEffect(() => {
     wsClient.connect();
-    return () => wsClient.disconnect();
   }, []);
+
 
   return (
     <BrowserRouter>

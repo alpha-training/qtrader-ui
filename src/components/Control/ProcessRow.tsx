@@ -1,89 +1,74 @@
 // src/components/control/ProcessRow.tsx
-import type { Process } from "../../types/Process";
 import { FileText } from "lucide-react";
+import { useProcessStore } from "../../store/processStore";
 
-type ProcessRowProps = {
-  process: Process;
-  isSelected: boolean;
-  onSelect: () => void;
-  onStart: () => void;
-  onStop: () => void;
+type Props = {
+  process: {
+    name: string;
+    host: string;
+    port: number;
+    status: "up" | "down";
+    pid: number | null;
+    mem: string | null;
+  };
+  onStart: (name: string) => void;
+  onStop: (name: string) => void;
 };
 
-export default function ProcessRow({
-  process,
-  isSelected,
-  onSelect,
-  onStart,
-  onStop,
-}: ProcessRowProps) {
-  const isRunning = process.status === "up";
+export default function ProcessRow({ process, onStart, onStop }: Props) {
+  const { selectedProcess, setSelectedProcess } = useProcessStore();
+
+  const isSelected = selectedProcess === process.name;
 
   return (
     <tr
-      onClick={onSelect}
       className={`
-        border-b border-gray-800 text-sm cursor-pointer
-        ${isSelected ? "bg-[#151b20]" : "hover:bg-[#141920]"}
+        cursor-pointer transition
+        ${isSelected ? "bg-[#1d2730]" : "hover:bg-[#1a2229]"}
       `}
+      onClick={() => setSelectedProcess(process.name)}
     >
-      {/* name */}
-      <td className="px-2 py-0.5 font-medium text-white">{process.name}</td>
+      <td className="px-3 py-1.5">{process.name}</td>
+      <td className="px-3 py-1.5">{process.host}</td>
+      <td className="px-3 py-1.5">{process.port}</td>
 
-      {/* host */}
-      <td className="px-2 py-0.5 text-gray-300">{process.host}</td>
-
-      {/* port */}
-      <td className="px-2 py-0.5 text-gray-300">{process.port}</td>
-
-      {/* status */}
-      <td className="px-2 py-0.5">
-        <div className="flex items-center gap-2">
-          <span
-            className={`h-2.5 w-2.5 rounded-full ${
-              isRunning ? "bg-green-500" : "bg-red-500"
-            }`}
-          />
-          <span className="text-gray-300">{process.status}</span>
-        </div>
+      <td className="px-3 py-1.5">
+        <span
+          className={`
+            inline-block w-2 h-2 rounded-full mr-2
+            ${process.status === "up" ? "bg-green-500" : "bg-red-500"}
+          `}
+        />
+        {process.status}
       </td>
 
-      {/* pid */}
-      <td className="px-2 py-0.5 text-gray-300">
-        {process.pid != null ? process.pid : "-"}
+      <td className="px-3 py-1.5">{process.pid ?? "-"}</td>
+      <td className="px-3 py-1.5">{process.mem ?? "-"}</td>
+
+      <td className="px-3 py-1.5">
+        <FileText size={14} className="text-gray-400" />
       </td>
 
-      {/* mem */}
-      <td className="px-2 py-0.5 text-gray-300">
-        {process.mem != null ? process.mem : "-"}
-      </td>
-
-      {/* log icon */}
-      <td className="px-2 py-0.5 text-gray-300">
-        <FileText size={16} className="cursor-pointer hover:text-white" />
-      </td>
-
-      {/* action */}
-      <td className="px-2 py-0.5">
-        {isRunning ? (
+      <td className="px-3 py-1.5">
+        {process.status === "down" ? (
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onStop();
+              onStart(process.name);
             }}
-            className="border border-orange-500 text-orange-400 text-xs px-2 py-0.5 rounded-sm hover:bg-orange-500 hover:text-black transition"
+            className="px-2 py-0.5 text-xs border border-green-600 text-green-400 rounded-sm hover:bg-green-600 hover:text-black transition"
           >
-            Stop
+            Start
           </button>
         ) : (
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onStart();
+              onStop(process.name);
             }}
-            className="border border-green-500 text-green-400 text-xs px-2 py-0.5 rounded-sm hover:bg-green-500 hover:text-black transition"
+            className="px-2 py-0.5 text-xs border border-orange-600 text-orange-400 rounded-sm hover:bg-orange-600 hover:text-black transition"
           >
-            Start
+            Stop
           </button>
         )}
       </td>
