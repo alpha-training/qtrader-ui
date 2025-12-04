@@ -17,7 +17,7 @@ export default function SidebarItem({ label, to, icon }: SidebarItemProps) {
       }
     >
       <span className="w-5 h-5">{icon}</span>
-      <span className="text-sm">{label}</span>
+      <span className="">{label}</span>
     </NavLink>
   );
 }

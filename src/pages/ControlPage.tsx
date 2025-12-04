@@ -2,11 +2,9 @@
 import { useState } from "react";
 import ControlTable from "../components/control/ControlTable";
 import Logs from "../components/control/Logs";
-import { useProcesses } from "../context/ProcessContext";
 
 export default function ControlPage() {
   const [selectedChannel, setSelectedChannel] = useState<string>("All");
-  const { processes } = useProcesses();
 
   return (
     <>
@@ -15,10 +13,7 @@ export default function ControlPage() {
         onSelectChannel={setSelectedChannel}
       />
       <Logs
-        selectedChannel={selectedChannel}
-        onChannelChange={setSelectedChannel}
       />
-
     </>
   );
 }

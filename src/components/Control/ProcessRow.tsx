@@ -4,100 +4,84 @@ import { FileText } from "lucide-react";
 
 type ProcessRowProps = {
   process: Process;
-  onStart: (name: string) => void;
-  onStop: (name: string) => void;
-  onSelect: (name: string) => void;
   isSelected: boolean;
+  onSelect: () => void;
+  onStart: () => void;
+  onStop: () => void;
 };
 
 export default function ProcessRow({
   process,
+  isSelected,
+  onSelect,
   onStart,
   onStop,
-  onSelect,
-  isSelected,
 }: ProcessRowProps) {
-  const isUp = process.status === "up";
+  const isRunning = process.status === "up";
 
   return (
     <tr
-      className={`text-xs border-t border-gray-800 cursor-pointer ${
-        isSelected ? "bg-[#151b20]" : "hover:bg-[#141921]"
-      }`}
-      onClick={() => onSelect(process.name)}
+      onClick={onSelect}
+      className={`
+        border-b border-gray-800 text-sm cursor-pointer
+        ${isSelected ? "bg-[#151b20]" : "hover:bg-[#141920]"}
+      `}
     >
       {/* name */}
-      <td className="px-2 py-1 whitespace-nowrap">{process.name}</td>
+      <td className="px-2 py-0.5 font-medium text-white">{process.name}</td>
 
       {/* host */}
-      <td className="px-2 py-1 whitespace-nowrap text-gray-300">
-        {process.host}
-      </td>
+      <td className="px-2 py-0.5 text-gray-300">{process.host}</td>
 
       {/* port */}
-      <td className="px-2 py-1 whitespace-nowrap text-gray-300">
-        {process.port ?? "-"}
-      </td>
+      <td className="px-2 py-0.5 text-gray-300">{process.port}</td>
 
       {/* status */}
-      <td className="px-2 py-1 whitespace-nowrap">
-        <span className="inline-flex items-center gap-1">
+      <td className="px-2 py-0.5">
+        <div className="flex items-center gap-2">
           <span
-            className={`inline-block w-2 h-2 rounded-full ${
-              isUp ? "bg-green-500" : "bg-red-500"
+            className={`h-2.5 w-2.5 rounded-full ${
+              isRunning ? "bg-green-500" : "bg-red-500"
             }`}
           />
-          <span className="text-gray-200">
-            {isUp ? "up" : "down"}
-          </span>
-        </span>
+          <span className="text-gray-300">{process.status}</span>
+        </div>
       </td>
 
       {/* pid */}
-      <td className="px-2 py-1 whitespace-nowrap text-gray-300">
-        {process.pid ?? "-"}
+      <td className="px-2 py-0.5 text-gray-300">
+        {process.pid != null ? process.pid : "-"}
       </td>
 
-      {/* mem/heap */}
-      <td className="px-2 py-1 whitespace-nowrap text-gray-300">
-        {process.mem ?? "-"}
+      {/* mem */}
+      <td className="px-2 py-0.5 text-gray-300">
+        {process.mem != null ? process.mem : "-"}
       </td>
 
       {/* log icon */}
-      <td className="px-2 py-1 whitespace-nowrap">
-        <button
-          type="button"
-          className="inline-flex items-center justify-center w-7 h-7 rounded border border-gray-700 hover:bg-gray-800"
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect(process.name);
-          }}
-        >
-          <FileText size={12} />
-        </button>
+      <td className="px-2 py-0.5 text-gray-300">
+        <FileText size={16} className="cursor-pointer hover:text-white" />
       </td>
 
       {/* action */}
-      <td className="px-2 py-1 whitespace-nowrap">
-        {isUp ? (
+      <td className="px-2 py-0.5">
+        {isRunning ? (
           <button
-            type="button"
-            className="px-2 py-0.5 text-[11px] rounded border border-amber-500 text-amber-400 hover:bg-amber-900/40"
             onClick={(e) => {
               e.stopPropagation();
-              onStop(process.name);
+              onStop();
             }}
+            className="border border-orange-500 text-orange-400 text-xs px-2 py-0.5 rounded-sm hover:bg-orange-500 hover:text-black transition"
           >
             Stop
           </button>
         ) : (
           <button
-            type="button"
-            className="px-2 py-0.5 text-[11px] rounded border border-green-500 text-green-400 hover:bg-green-900/40"
             onClick={(e) => {
               e.stopPropagation();
-              onStart(process.name);
+              onStart();
             }}
+            className="border border-green-500 text-green-400 text-xs px-2 py-0.5 rounded-sm hover:bg-green-500 hover:text-black transition"
           >
             Start
           </button>

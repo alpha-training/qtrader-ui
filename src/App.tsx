@@ -1,6 +1,7 @@
+// src/App.tsx
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import PageLayout from "./components/layout/PageLayout";
-
 import ControlPage from "./pages/ControlPage";
 import StratsPage from "./pages/StratsPage";
 import ChartsPage from "./pages/ChartsPage";
@@ -9,8 +10,14 @@ import OrdersPage from "./pages/OrdersPage";
 import RiskPage from "./pages/RiskPage";
 import LogsPage from "./pages/LogsPage";
 import SettingsPage from "./pages/SettingsPage";
+import wsClient from "./services/wsClient";
 
 function App() {
+  useEffect(() => {
+    wsClient.connect();
+    return () => wsClient.disconnect();
+  }, []);
+
   return (
     <BrowserRouter>
       <Routes>
