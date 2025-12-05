@@ -1,4 +1,3 @@
-// src/App.tsx
 import { useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
@@ -12,7 +11,7 @@ import RiskPage from "./pages/RiskPage";
 import LogsPage from "./pages/LogsPage";
 import SettingsPage from "./pages/SettingsPage";
 
-import { wsClient } from "./ws/wsProvider"; 
+import { wsClient } from "./ws";
 import WsBanner from "./components/UI/WsBanner";
 
 function App() {

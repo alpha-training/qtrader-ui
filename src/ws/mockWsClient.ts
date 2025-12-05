@@ -1,32 +1,26 @@
-// src/ws/mockWsClient.ts
-
+import type { IWebSocketClient } from "./IWebSocketClient";
 import { useWsStore } from "../store/wsStore";
 import { useLogsStore } from "../store/logsStore";
 import { useProcessStore } from "../store/processStore";
-import type { IWebSocketClient } from "./IWebSocketClient";
 
-export class MockWSClient implements IWebSocketClient {
-  ws: WebSocket | null = null;
-  reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+class MockWsClient implements IWebSocketClient {
+  ws: null = null;
+  reconnectTimer: null = null;
   manualClose = false;
 
   connect() {
-    if (this.ws) return;
-
-    console.log("WS: connecting (mock)...");
+    console.log("Mock WS: connecting...");
     useWsStore.getState().setConnecting();
 
     setTimeout(() => {
-      console.log("WS: connected (mock)");
+      console.log("Mock WS: connected");
       useWsStore.getState().setConnected();
       this.startMockStreams();
-    }, 1200);
+    }, 600);
   }
 
   startMockStreams() {
-    // ----------------------------------------------------
     // LOG HEARTBEATS
-    // ----------------------------------------------------
     setInterval(() => {
       useLogsStore.getState().pushLog({
         timestamp: new Date().toLocaleTimeString("en-GB"),
@@ -36,33 +30,23 @@ export class MockWSClient implements IWebSocketClient {
       });
     }, 3000);
 
-    // ----------------------------------------------------
-    // RANDOM PROCESS status flip
-    // ----------------------------------------------------
+    // RANDOM PROCESS STATUS
     setInterval(() => {
       const processes = useProcessStore.getState().processes;
       if (!processes.length) return;
-    
+
       const index = Math.floor(Math.random() * processes.length);
       const p = processes[index];
-    
+
       const next = p.status === "up" ? "down" : "up";
-    
-      useProcessStore.getState().updateProcess({
-        ...p,
-        status: next,
-      });
-    }, 5000);
-    
+      useProcessStore.getState().updateProcess({ ...p, status: next });
+    }, 4500);
   }
 
   close() {
     this.manualClose = true;
-    try {
-      this.ws?.close();
-    } catch {}
     useWsStore.getState().setClosed();
   }
 }
 
-export const mockWsClient = new MockWSClient();
+export const mockWsClient = new MockWsClient();
