@@ -1,23 +1,15 @@
 // src/store/logsStore.ts
 import { create } from "zustand";
-import type { WSLogEntry } from "../types/wsTypes";
+import type { LogEntry } from "../types/LogEntry";
 
-export type LogsState = {
-  logs: WSLogEntry[];
-  pushLog: (log: WSLogEntry) => void;
+type LogsState = {
+  logs: LogEntry[];
+  pushLog: (l: LogEntry) => void;
   clearLogs: () => void;
 };
 
 export const useLogsStore = create<LogsState>((set) => ({
   logs: [],
-
-  pushLog: (log) =>
-    set((state) => ({
-      logs: [...state.logs, log],
-    })),
-
-  clearLogs: () =>
-    set(() => ({
-      logs: [],
-    })),
+  pushLog: (l) => set((s) => ({ logs: [...s.logs, l] })),
+  clearLogs: () => set({ logs: [] }),
 }));

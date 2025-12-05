@@ -10,7 +10,7 @@ import OrdersPage from "./pages/OrdersPage";
 import RiskPage from "./pages/RiskPage";
 import LogsPage from "./pages/LogsPage";
 import SettingsPage from "./pages/SettingsPage";
-import wsClient from "./services/wsClient";
+import wsClient from "./ws/wsClient";
 
 function App() {
   useEffect(() => {
