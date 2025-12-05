@@ -1,5 +1,6 @@
 // src/components/control/ControlTable.tsx
 import { useEffect, useState } from "react";
+
 import ProcessRow from "./ProcessRow";
 import Pagination from "../UI/Pagination";
 
@@ -8,9 +9,9 @@ import ConfirmStopModal from "../UI/ConfirmStopModal";
 import ConfirmStartAllModal from "../UI/ConfirmStartAllModal";
 import ConfirmStopAllModal from "../UI/ConfirmStopAllModal";
 
-import { useProcessStore, type Process } from "../../store/processStore";
+import { useProcessStore } from "../../store/processStore";
 import { usePrefs } from "../../hooks/usePrefs";
-import { mockApi } from "../../api/mockApi";
+import { processApi } from "../../api/processApi";
 
 type ControlTableProps = {
   selectedChannel: string;
@@ -25,11 +26,11 @@ export default function ControlTable({
     processes,
     selectedProcess,
     setProcesses,
+    setSelectedProcess,
     startOne,
     stopOne,
     startAll,
     stopAll,
-    setSelectedProcess,
   } = useProcessStore();
 
   const {
@@ -39,128 +40,138 @@ export default function ControlTable({
     confirmStopAll,
   } = usePrefs();
 
-  // -------------------------------
-  // LOAD PROCESSES FROM API
-  // -------------------------------
-  useEffect(() => {
-    async function load() {
-      const list = await mockApi.getProcesses();
-      setProcesses(list);
-    }
-    load();
-  }, [setProcesses]);
-
-  // -------------------------------
-  // PAGINATION
-  // -------------------------------
+  // ---------------- Pagination ----------------
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
-  const totalPages = Math.max(1, Math.ceil(processes.length / pageSize));
-  const paginated: Process[] = processes.slice(
+  const totalPages = Math.max(
+    1,
+    Math.ceil(processes.length / pageSize)
+  );
+
+  const paginated = processes.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize
   );
 
-  // -------------------------------
-  // MODALS
-  // -------------------------------
+  // ---------------- Modals ----------------
   const [startModalOpen, setStartModalOpen] = useState(false);
   const [stopModalOpen, setStopModalOpen] = useState(false);
   const [startAllModalOpen, setStartAllModalOpen] = useState(false);
   const [stopAllModalOpen, setStopAllModalOpen] = useState(false);
 
-  // -------------------------------
-  // FLAGS
-  // -------------------------------
-  const allRunning = processes.length > 0 && processes.every((p) => p.status === "up");
-  const allStopped = processes.length > 0 && processes.every((p) => p.status === "down");
+  // ---------------- Derived flags ----------------
+  const allRunning =
+    processes.length > 0 &&
+    processes.every((p) => p.status === "up");
 
-  // -------------------------------
-  // HANDLERS: SINGLE PROCESS
-  // -------------------------------
-  const handleStart = async (name: string) => {
+  const allStopped =
+    processes.length > 0 &&
+    processes.every((p) => p.status === "down");
+
+  // ---------------- Load processes from API (mock for now) ----------------
+  useEffect(() => {
+    if (processes.length) return;
+
+    async function load() {
+      try {
+        const items = await processApi.getAll();
+        setProcesses(items);
+      } catch (err) {
+        console.error("Failed to load processes", err);
+      }
+    }
+
+    load();
+  }, [processes.length, setProcesses]);
+
+  // ---------------- Handlers: row selection ----------------
+  const handleRowSelect = (name: string) => {
     setSelectedProcess(name);
-    onSelectChannel(name);
+
+    // sync with Logs tabs
+    if (selectedChannel !== name) {
+      onSelectChannel(name);
+    }
+  };
+
+  // ---------------- Handlers: single row start / stop ----------------
+  const handleStart = (name: string) => {
+    setSelectedProcess(name);
 
     if (confirmStart) {
       setStartModalOpen(true);
-      return;
+    } else {
+      startOne(name);
     }
-
-    await mockApi.startProcess(name);
-    startOne(name);
   };
 
-  const handleStop = async (name: string) => {
+  const handleStop = (name: string) => {
     setSelectedProcess(name);
-    onSelectChannel(name);
 
     if (confirmStop) {
       setStopModalOpen(true);
-      return;
+    } else {
+      stopOne(name);
     }
-
-    await mockApi.stopProcess(name);
-    stopOne(name);
   };
 
-  const confirmStartOne = async () => {
+  const confirmStartOne = () => {
     if (selectedProcess) {
-      await mockApi.startProcess(selectedProcess);
       startOne(selectedProcess);
     }
     setStartModalOpen(false);
   };
 
-  const confirmStopOne = async () => {
+  const confirmStopOne = () => {
     if (selectedProcess) {
-      await mockApi.stopProcess(selectedProcess);
       stopOne(selectedProcess);
     }
     setStopModalOpen(false);
   };
 
-  // -------------------------------
-  // HANDLERS: START/STOP ALL
-  // -------------------------------
+  // ---------------- Handlers: all processes ----------------
   const handleStartAll = () => {
-    if (confirmStartAll) return setStartAllModalOpen(true);
-
-    mockApi.startAll().then(startAll);
+    if (confirmStartAll) {
+      setStartAllModalOpen(true);
+    } else {
+      startAll();
+    }
   };
 
   const handleStopAll = () => {
-    if (confirmStopAll) return setStopAllModalOpen(true);
-
-    mockApi.stopAll().then(stopAll);
+    if (confirmStopAll) {
+      setStopAllModalOpen(true);
+    } else {
+      stopAll();
+    }
   };
 
-  const confirmStartAllAction = async () => {
-    await mockApi.startAll();
+  const confirmStartAllAction = () => {
     startAll();
     setStartAllModalOpen(false);
   };
 
-  const confirmStopAllAction = async () => {
-    await mockApi.stopAll();
+  const confirmStopAllAction = () => {
     stopAll();
     setStopAllModalOpen(false);
   };
 
+  // ---------------- Render ----------------
   return (
     <div className="mb-4">
-
-      {/* HEADER BUTTONS */}
+      {/* header buttons */}
       <div className="flex justify-end gap-2 mb-2">
         <button
           onClick={handleStartAll}
           disabled={allRunning}
           className={`
             px-2 py-0.5 text-xs rounded-sm border transition
-            ${allRunning
-              ? "border-gray-700 text-gray-500 cursor-not-allowed opacity-40"
-              : "border-green-600 text-green-400 hover:bg-green-600 hover:text-black"}
+            ${
+              allRunning
+                ? "border-gray-700 text-gray-500 cursor-not-allowed opacity-40"
+                : "border-green-600 text-green-400 hover:bg-green-600 hover:text-black"
+            }
           `}
         >
           Start all
@@ -171,16 +182,18 @@ export default function ControlTable({
           disabled={allStopped}
           className={`
             px-2 py-0.5 text-xs rounded-sm border transition
-            ${allStopped
-              ? "border-gray-700 text-gray-500 cursor-not-allowed opacity-40"
-              : "border-orange-600 text-orange-400 hover:bg-orange-600 hover:text-black"}
+            ${
+              allStopped
+                ? "border-gray-700 text-gray-500 cursor-not-allowed opacity-40"
+                : "border-orange-600 text-orange-400 hover:bg-orange-600 hover:text-black"
+            }
           `}
         >
           Stop all
         </button>
       </div>
 
-      {/* TABLE */}
+      {/* table */}
       <div className="border border-gray-800 rounded-md overflow-hidden">
         <table className="w-full text-xs">
           <thead className="bg-[#151b20] text-gray-400">
@@ -201,6 +214,8 @@ export default function ControlTable({
               <ProcessRow
                 key={p.name}
                 process={p}
+                isSelected={selectedProcess === p.name}
+                onSelect={handleRowSelect}
                 onStart={handleStart}
                 onStop={handleStop}
               />
@@ -209,25 +224,29 @@ export default function ControlTable({
         </table>
       </div>
 
-      {/* PAGINATION */}
+      {/* pagination */}
       <Pagination
         currentPage={currentPage}
         totalPages={totalPages}
-        onPrev={() => setCurrentPage((p) => Math.max(1, p - 1))}
-        onNext={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+        onPrev={() =>
+          setCurrentPage((p) => Math.max(1, p - 1))
+        }
+        onNext={() =>
+          setCurrentPage((p) => Math.min(totalPages, p + 1))
+        }
       />
 
-      {/* MODALS */}
+      {/* modals */}
       <ConfirmStartModal
         isOpen={startModalOpen}
-        processName={selectedProcess}
+        processName={selectedProcess ?? ""}
         onClose={() => setStartModalOpen(false)}
         onConfirm={confirmStartOne}
       />
 
       <ConfirmStopModal
         isOpen={stopModalOpen}
-        processName={selectedProcess}
+        processName={selectedProcess ?? ""}
         onClose={() => setStopModalOpen(false)}
         onConfirm={confirmStopOne}
       />

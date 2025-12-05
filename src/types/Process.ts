@@ -1,3 +1,4 @@
+// src/types/Process.ts
 export type ProcessStatus = "up" | "down";
 
 export type Process = {
@@ -5,6 +6,6 @@ export type Process = {
   host: string;
   port: number;
   status: ProcessStatus;
-  pid?: number | null;
-  mem?: string | null;
+  pid: number | null;
+  mem: string | null;
 };

@@ -1,74 +1,90 @@
 // src/components/control/ProcessRow.tsx
+import type { Process } from "../../types/Process";
 import { FileText } from "lucide-react";
-import { useProcessStore } from "../../store/processStore";
 
-type Props = {
-  process: {
-    name: string;
-    host: string;
-    port: number;
-    status: "up" | "down";
-    pid: number | null;
-    mem: string | null;
-  };
+type ProcessRowProps = {
+  process: Process;
+  isSelected: boolean;
+  onSelect: (name: string) => void;
   onStart: (name: string) => void;
   onStop: (name: string) => void;
 };
 
-export default function ProcessRow({ process, onStart, onStop }: Props) {
-  const { selectedProcess, setSelectedProcess } = useProcessStore();
+export default function ProcessRow({
+  process,
+  isSelected,
+  onSelect,
+  onStart,
+  onStop,
+}: ProcessRowProps) {
+  const handleRowClick = () => {
+    onSelect(process.name);
+  };
 
-  const isSelected = selectedProcess === process.name;
+  const handleStart = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onStart(process.name);
+  };
+
+  const handleStop = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onStop(process.name);
+  };
+
+  const running = process.status === "up";
 
   return (
     <tr
       className={`
-        cursor-pointer transition
-        ${isSelected ? "bg-[#1d2730]" : "hover:bg-[#1a2229]"}
+        cursor-pointer border-t border-gray-800
+        ${isSelected ? "bg-[#141b23]" : "hover:bg-[#10151b]"}
       `}
-      onClick={() => setSelectedProcess(process.name)}
+      onClick={handleRowClick}
     >
       <td className="px-3 py-1.5">{process.name}</td>
       <td className="px-3 py-1.5">{process.host}</td>
       <td className="px-3 py-1.5">{process.port}</td>
-
       <td className="px-3 py-1.5">
         <span
           className={`
-            inline-block w-2 h-2 rounded-full mr-2
-            ${process.status === "up" ? "bg-green-500" : "bg-red-500"}
+            inline-flex items-center gap-1
+            ${running ? "text-green-400" : "text-red-400"}
           `}
-        />
-        {process.status}
+        >
+          <span
+            className={`
+              inline-block w-2 h-2 rounded-full
+              ${running ? "bg-green-500" : "bg-red-500"}
+            `}
+          />
+          {running ? "up" : "down"}
+        </span>
       </td>
-
       <td className="px-3 py-1.5">{process.pid ?? "-"}</td>
       <td className="px-3 py-1.5">{process.mem ?? "-"}</td>
-
       <td className="px-3 py-1.5">
-        <FileText size={14} className="text-gray-400" />
+        <button
+          onClick={() => onSelect?.(process.name)}
+          className="text-gray-400 hover:text-blue-400 transition"
+        >
+          <FileText size={16} />
+        </button>
       </td>
 
       <td className="px-3 py-1.5">
-        {process.status === "down" ? (
+        {running ? (
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onStart(process.name);
-            }}
-            className="px-2 py-0.5 text-xs border border-green-600 text-green-400 rounded-sm hover:bg-green-600 hover:text-black transition"
+            onClick={handleStop}
+            className="px-2 py-0.5 text-xs rounded-sm border border-orange-600 text-orange-400 hover:bg-orange-600 hover:text-black"
           >
-            Start
+            Stop
           </button>
         ) : (
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onStop(process.name);
-            }}
-            className="px-2 py-0.5 text-xs border border-orange-600 text-orange-400 rounded-sm hover:bg-orange-600 hover:text-black transition"
+            onClick={handleStart}
+            className="px-2 py-0.5 text-xs rounded-sm border border-green-600 text-green-400 hover:bg-green-600 hover:text-black"
           >
-            Stop
+            Start
           </button>
         )}
       </td>

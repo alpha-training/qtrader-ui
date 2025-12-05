@@ -1,7 +1,21 @@
+// src/pages/SettingsPage.tsx
 import { usePrefs } from "../hooks/usePrefs";
 
 export default function SettingsPage() {
-  const { prefs, setPrefs } = usePrefs();
+  const {
+    confirmStart,
+    confirmStop,
+    confirmStartAll,
+    confirmStopAll,
+    setPrefs,
+  } = usePrefs();
+
+  const prefs = {
+    confirmStart,
+    confirmStop,
+    confirmStartAll,
+    confirmStopAll,
+  };
 
   const settings = [
     { key: "confirmStart", label: "Show confirmation when starting a process" },
@@ -11,8 +25,7 @@ export default function SettingsPage() {
   ] as const;
 
   return (
-    <div className="max-w-md space-y-3 p-3">
-
+    <div className="max-w-md space-y-4 p-3">
       <h1 className="text-lg font-semibold mb-2">Preferences</h1>
 
       {settings.map(({ key, label }) => (

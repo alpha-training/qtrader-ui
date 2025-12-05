@@ -5,20 +5,20 @@ import App from "./App";
 import "./index.css";
 
 import { ThemeProvider } from "./context/ThemeContext";
-import { PrefsProvider } from "./context/PreferencesContext";
+import { PreferencesProvider } from "./context/PreferencesContext";
 import { ProcessProvider } from "./context/ProcessContext";
 import { LogProvider } from "./context/LogContext";
 
 createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>
     <ThemeProvider>
-      <PrefsProvider>
+      <PreferencesProvider>
         <ProcessProvider>
           <LogProvider>
             <App />
           </LogProvider>
         </ProcessProvider>
-      </PrefsProvider>
+      </PreferencesProvider>
     </ThemeProvider>
   </StrictMode>
 );

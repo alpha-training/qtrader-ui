@@ -1,46 +1,39 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import type { Prefs } from "../types/PrefsTypes";
+// src/context/PreferencesContext.tsx
+import { createContext, useState } from "react";
 
-const defaultPrefs: Prefs = {
+export type PrefsContextType = {
+  confirmStart: boolean;
+  confirmStop: boolean;
+  confirmStartAll: boolean;
+  confirmStopAll: boolean;
+
+  setPrefs: (p: Partial<PrefsContextType>) => void;
+};
+
+export const PreferencesContext = createContext<PrefsContextType>({
   confirmStart: false,
   confirmStop: false,
   confirmStartAll: false,
   confirmStopAll: false,
-};
-
-type PrefsContextType = {
-  prefs: Prefs;
-  setPrefs: (newPrefs: Partial<Prefs>) => void;
-};
-
-const PrefsContext = createContext<PrefsContextType>({
-  prefs: defaultPrefs,
   setPrefs: () => {},
 });
 
-export function PrefsProvider({ children }: { children: React.ReactNode }) {
-  const [prefs, setPrefsState] = useState<Prefs>(() => {
-    try {
-      const saved = localStorage.getItem("qt_prefs");
-      return saved ? JSON.parse(saved) : defaultPrefs;
-    } catch {
-      return defaultPrefs;
-    }
+export function PreferencesProvider({ children }: { children: React.ReactNode }) {
+  const [prefs, setPrefsState] = useState<PrefsContextType>({
+    confirmStart: false,
+    confirmStop: false,
+    confirmStartAll: false,
+    confirmStopAll: false,
+    setPrefs: () => {},
   });
 
-  const setPrefs = (newPrefs: Partial<Prefs>) => {
-    setPrefsState(prev => {
-      const updated = { ...prev, ...newPrefs };
-      localStorage.setItem("qt_prefs", JSON.stringify(updated));
-      return updated;
-    });
-  };
+  function setPrefs(update: Partial<PrefsContextType>) {
+    setPrefsState((p) => ({ ...p, ...update, setPrefs }));
+  }
 
   return (
-    <PrefsContext.Provider value={{ prefs, setPrefs }}>
+    <PreferencesContext.Provider value={{ ...prefs, setPrefs }}>
       {children}
-    </PrefsContext.Provider>
+    </PreferencesContext.Provider>
   );
 }
-
-export const usePrefs = () => useContext(PrefsContext);

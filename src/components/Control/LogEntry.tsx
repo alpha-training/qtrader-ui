@@ -1,7 +1,8 @@
 // src/components/control/LogEntry.tsx
-import type { LogEntry } from "../../types/LogEntry";
 
-type LogEntryProps = LogEntry;
+import type { LogEntry as LogEntryType } from "../../types/LogEntry";
+
+type LogEntryProps = LogEntryType;
 
 export default function LogEntry({
   timestamp,

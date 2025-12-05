@@ -1,14 +1,16 @@
 // src/services/wsClient.ts
+// Dummy WebSocket client (mocked)
+
 import { useProcessStore } from "../store/processStore";
 import { useLogsStore } from "../store/logsStore";
 import type { WSProcessUpdate, WSLogEntry } from "../types/wsTypes";
 
 function randomPid() {
-  return 2000 + Math.floor(Math.random() * 4000);
+  return 3000 + Math.floor(Math.random() * 3000);
 }
 
 function randomMem() {
-  const used = 32 + Math.floor(Math.random() * 96);
+  const used = 64 + Math.floor(Math.random() * 64);
   const total = 128;
   return `${used} MB / ${total} MB`;
 }
@@ -20,18 +22,17 @@ class WSClient {
     if (this.connected) return;
     console.log("WS: connecting (mock)...");
     this.connected = true;
-
     this.startMockStreams();
   }
 
   private startMockStreams() {
-    console.warn("⚠ Mock WS logs enabled");
-    console.warn("⚠ Mock WS process updates enabled");
+    console.warn("▶ Mock WS process updates enabled");
+    console.warn("▶ Mock WS logs enabled");
 
-    // Fake status flip
+    // Random process status changes
     setInterval(() => {
       const store = useProcessStore.getState();
-      const processes = store.processes;
+      const { processes, applyWsUpdate } = store;
 
       if (!processes.length) return;
 
@@ -42,38 +43,37 @@ class WSClient {
         target.status === "up" && Math.random() < 0.3 ? "down" : "up";
 
       const update: WSProcessUpdate = {
-        type: "process.update",
+        type: "process_update",
         name: target.name,
         status: flip,
         pid: flip === "up" ? randomPid() : null,
-        mem: flip === "up" ? randomMem() : "-",
+        mem: flip === "up" ? randomMem() : null,
       };
 
-      store.applyWsUpdate(update);
+      applyWsUpdate(update);
 
-      // Emit log
       const log: WSLogEntry = {
-        type: "log.entry",
+        type: "log_entry",
         timestamp: new Date().toLocaleTimeString("en-GB"),
         level: "INFO",
-        message: `process ${target.name} is now ${flip}`,
+        message: `process ${target.name} -> ${flip}`,
         channel: target.name,
       };
 
-      useLogsStore.getState().addLog(log);
+      useLogsStore.getState().pushLog(log);
     }, 10_000);
 
-    // Heartbeat
+    // Heartbeat logs
     setInterval(() => {
-      const log: WSLogEntry = {
-        type: "log.entry",
+      const heartbeat: WSLogEntry = {
+        type: "log_entry",
         timestamp: new Date().toLocaleTimeString("en-GB"),
         level: "INFO",
         message: "WS heartbeat OK",
         channel: "system",
       };
 
-      useLogsStore.getState().addLog(log);
+      useLogsStore.getState().pushLog(heartbeat);
     }, 3_000);
   }
 }

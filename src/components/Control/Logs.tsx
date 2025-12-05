@@ -5,7 +5,7 @@ import LogEntry from "./LogEntry";
 
 import { useLogsStore } from "../../store/logsStore";
 import { useProcessStore } from "../../store/processStore";
-import { mockApi } from "../../api/mockApi";
+import { logsApi } from "../../api/logsApi";
 
 type LogsProps = {
   selectedChannel: string;
@@ -13,12 +13,18 @@ type LogsProps = {
 };
 
 export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
+  // -------------------------------
+  // STORES
+  // -------------------------------
   const logs = useLogsStore((s) => s.logs);
   const pushLog = useLogsStore((s) => s.pushLog);
+  const clearLogs = useLogsStore((s) => s.clearLogs);
 
-  const selectedProcess = useProcessStore((s) => s.selectedProcess);
   const setSelectedProcess = useProcessStore((s) => s.setSelectedProcess);
 
+  // -------------------------------
+  // LOCAL UI STATE
+  // -------------------------------
   const [showInfo, setShowInfo] = useState(true);
   const [showError, setShowError] = useState(true);
   const [autoScroll, setAutoScroll] = useState(true);
@@ -27,40 +33,42 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
   const logRef = useRef<HTMLDivElement>(null);
 
   // -------------------------------
-  // INITIAL LOAD FROM API
+  // INITIAL LOAD FROM API (mock)
   // -------------------------------
   useEffect(() => {
     async function load() {
-      const items = await mockApi.getLogs();
-      items.forEach((l) => pushLog(l));
+      try {
+        const items = await logsApi.getAll();
+        clearLogs();
+        items.forEach((l) => pushLog(l));
+      } catch (err) {
+        console.warn("Logs: using empty logs (mock failed)");
+      }
     }
+
     load();
-  }, [pushLog]);
+  }, [clearLogs, pushLog]);
 
   // -------------------------------
-  // SYNC ROW CLICK → TAB CHANGE
+  // CHANNEL TABS (auto-generated)
   // -------------------------------
-  useEffect(() => {
-    if (selectedProcess && selectedProcess !== selectedChannel) {
-      onChannelChange(selectedProcess);
-    }
-  }, [selectedProcess]);
+  const uniqueChannels = Array.from(
+    new Set(logs.map((l) => l.channel))
+  ).sort();
+
+  const channels = ["All", ...uniqueChannels];
 
   // -------------------------------
-  // BUILD CHANNEL LIST
+  // FILTERED LOGS
   // -------------------------------
-  const unique = Array.from(new Set(logs.map((l) => l.channel))).sort();
-  const channels = ["All", ...unique];
-
-  // -------------------------------
-  // FILTERS
-  // -------------------------------
-  const filtered = logs.filter((log) => {
+  const filteredLogs = logs.filter((log) => {
     const matchChannel =
       selectedChannel === "All" || log.channel === selectedChannel;
+
     const matchLevel =
       (log.level === "INFO" && showInfo) ||
       (log.level === "ERROR" && showError);
+
     return matchChannel && matchLevel;
   });
 
@@ -71,37 +79,45 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
     if (autoScroll && logRef.current) {
       logRef.current.scrollTop = logRef.current.scrollHeight;
     }
-  }, [filtered, autoScroll]);
+  }, [filteredLogs, autoScroll]);
 
   // -------------------------------
-  // REFRESH MANUALLY
+  // REFRESH (fake/manual)
   // -------------------------------
   const refreshLogs = async () => {
     setIsRefreshing(true);
 
-    const stamp = new Date().toLocaleTimeString("en-GB");
+    // В реале будет logsApi.getAll() или logsApi.getByChannel(...)
+    await new Promise((res) => setTimeout(res, 500));
+
     pushLog({
-      timestamp: stamp,
+      timestamp: new Date().toLocaleTimeString("en-GB"),
       level: "INFO",
       channel: selectedChannel === "All" ? "system" : selectedChannel,
       message: "Manual refresh",
     });
 
-    setTimeout(() => setIsRefreshing(false), 500);
+    setIsRefreshing(false);
   };
 
   // -------------------------------
-  // TAB CLICK
+  // CHANNEL CLICK HANDLER
   // -------------------------------
-  const handleTab = (ch: string) => {
-    onChannelChange(ch);
-    if (ch !== "All") setSelectedProcess(ch);
+  const handleChannelClick = (channel: string) => {
+    onChannelChange(channel);
+
+    // При клике по вкладке подсвечиваем строку в таблице
+    if (channel !== "All") {
+      setSelectedProcess(channel);
+    }
   };
 
+  // -------------------------------
+  // RENDER
+  // -------------------------------
   return (
     <div className="mt-4">
-
-      {/* HEADER */}
+      {/* Title + Refresh */}
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-base font-semibold">Logs:</h2>
 
@@ -109,8 +125,8 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
           onClick={refreshLogs}
           disabled={isRefreshing}
           className={`
-            px-2 py-0.5 text-xs flex items-center gap-1 rounded-sm border border-gray-600
-            hover:bg-gray-700 transition
+            flex items-center gap-1 px-2 py-0.5 text-xs rounded-sm border
+            border-gray-600 text-gray-200 hover:bg-gray-700 transition
             ${isRefreshing ? "opacity-50 cursor-not-allowed" : ""}
           `}
         >
@@ -119,19 +135,21 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
         </button>
       </div>
 
-      {/* TABS */}
+      {/* CHANNEL TABS */}
       <div className="flex gap-4 text-gray-400 mb-3">
         {channels.map((ch) => {
           const active = selectedChannel === ch;
           return (
             <button
               key={ch}
-              onClick={() => handleTab(ch)}
+              onClick={() => handleChannelClick(ch)}
               className={`
                 text-xs transition
-                ${active
-                  ? "text-blue-400 font-semibold underline underline-offset-4"
-                  : "text-gray-400 hover:text-white"}
+                ${
+                  active
+                    ? "text-blue-400 font-semibold underline underline-offset-4"
+                    : "text-gray-400 hover:text-white"
+                }
               `}
             >
               {ch}
@@ -140,9 +158,8 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
         })}
       </div>
 
-      {/* FILTERS */}
+      {/* FILTERS + AUTOSCROLL */}
       <div className="flex items-center gap-4 text-gray-300 mb-2">
-
         <label className="flex items-center gap-1 text-xs cursor-pointer">
           <input
             type="checkbox"
@@ -161,7 +178,8 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
           error
         </label>
 
-        <div className="ml-auto flex items-center gap-1 text-xs">
+        {/* Auto-scroll */}
+        <div className="flex items-center gap-1 ml-auto text-xs">
           Auto-scroll
           <button
             onClick={() => setAutoScroll(!autoScroll)}
@@ -172,24 +190,23 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
           >
             <span
               className={`
-                absolute w-3.5 h-3.5 top-0.5 bg-white rounded-full transition
+                absolute w-3.5 h-3.5 bg-white rounded-full top-0.5 transition
                 ${autoScroll ? "left-5" : "left-0.5"}
               `}
             />
           </button>
         </div>
-
       </div>
 
       {/* LOG WINDOW */}
       <div
         ref={logRef}
-        className="h-64 overflow-y-auto border border-gray-800 rounded-md p-2 bg-[#11161b]"
+        className="h-64 overflow-y-auto border border-gray-800 rounded-md p-2 bg-[#11161b] text-sm"
       >
-        {filtered.length === 0 ? (
+        {filteredLogs.length === 0 ? (
           <div className="text-gray-500 text-xs italic">No logs.</div>
         ) : (
-          filtered.map((log, i) => <LogEntry key={i} {...log} />)
+          filteredLogs.map((log, i) => <LogEntry key={i} {...log} />)
         )}
       </div>
     </div>

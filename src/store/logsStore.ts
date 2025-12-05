@@ -4,17 +4,22 @@ import type { LogEntry } from "../types/LogEntry";
 
 type LogsStore = {
   logs: LogEntry[];
-  addLog: (entry: LogEntry) => void;
+  pushLog: (entry: LogEntry) => void;
   clearLogs: () => void;
+  setLogs: (entries: LogEntry[]) => void;
 };
 
 export const useLogsStore = create<LogsStore>((set) => ({
   logs: [],
 
-  addLog: (entry) =>
+  pushLog: (entry) =>
     set((state) => ({
       logs: [...state.logs, entry],
     })),
 
   clearLogs: () => set({ logs: [] }),
+
+  setLogs: (entries) => set({ logs: entries }),
 }));
+
+export type { LogEntry };
