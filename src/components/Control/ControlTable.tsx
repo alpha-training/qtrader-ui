@@ -40,7 +40,7 @@ export default function ControlTable({
     confirmStopAll,
   } = usePrefs();
 
-  // ---------------- Pagination ----------------
+  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
@@ -54,13 +54,13 @@ export default function ControlTable({
     currentPage * pageSize
   );
 
-  // ---------------- Modals ----------------
+  // Modals
   const [startModalOpen, setStartModalOpen] = useState(false);
   const [stopModalOpen, setStopModalOpen] = useState(false);
   const [startAllModalOpen, setStartAllModalOpen] = useState(false);
   const [stopAllModalOpen, setStopAllModalOpen] = useState(false);
 
-  // ---------------- Derived flags ----------------
+  // Derived flags
   const allRunning =
     processes.length > 0 &&
     processes.every((p) => p.status === "up");
@@ -69,7 +69,7 @@ export default function ControlTable({
     processes.length > 0 &&
     processes.every((p) => p.status === "down");
 
-  // ---------------- Load processes from API (mock for now) ----------------
+  // Load processes from API (mock)
   useEffect(() => {
     if (processes.length) return;
 
@@ -85,7 +85,7 @@ export default function ControlTable({
     load();
   }, [processes.length, setProcesses]);
 
-  // ---------------- Handlers: row selection ----------------
+  // Row selection
   const handleRowSelect = (name: string) => {
     setSelectedProcess(name);
 
@@ -95,7 +95,7 @@ export default function ControlTable({
     }
   };
 
-  // ---------------- Handlers: single row start / stop ----------------
+  // Single row start/stop
   const handleStart = (name: string) => {
     setSelectedProcess(name);
 
@@ -130,7 +130,7 @@ export default function ControlTable({
     setStopModalOpen(false);
   };
 
-  // ---------------- Handlers: all processes ----------------
+  // All processes
   const handleStartAll = () => {
     if (confirmStartAll) {
       setStartAllModalOpen(true);
@@ -157,7 +157,6 @@ export default function ControlTable({
     setStopAllModalOpen(false);
   };
 
-  // ---------------- Render ----------------
   return (
     <div className="mb-4">
       {/* header buttons */}

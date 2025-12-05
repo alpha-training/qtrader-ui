@@ -22,14 +22,17 @@ class WSClient {
     if (this.connected) return;
     console.log("WS: connecting (mock)...");
     this.connected = true;
+
     this.startMockStreams();
   }
 
   private startMockStreams() {
-    console.warn("▶ Mock WS process updates enabled");
-    console.warn("▶ Mock WS logs enabled");
+    console.warn("►► Mock WS process updates enabled");
+    console.warn("►► Mock WS logs enabled");
 
-    // Random process status changes
+    // ---------------------
+    // Process heartbeat updates
+    // ---------------------
     setInterval(() => {
       const store = useProcessStore.getState();
       const { processes, applyWsUpdate } = store;
@@ -39,8 +42,7 @@ class WSClient {
       const target =
         processes[Math.floor(Math.random() * processes.length)];
 
-      const flip =
-        target.status === "up" && Math.random() < 0.3 ? "down" : "up";
+      const flip = target.status === "up" && Math.random() < 0.3 ? "down" : "up";
 
       const update: WSProcessUpdate = {
         type: "process_update",
@@ -55,22 +57,24 @@ class WSClient {
       const log: WSLogEntry = {
         type: "log_entry",
         timestamp: new Date().toLocaleTimeString("en-GB"),
-        level: "INFO",
-        message: `process ${target.name} -> ${flip}`,
+        level: flip === "up" ? "INFO" : "ERROR",
         channel: target.name,
+        message: `process ${target.name} -> ${flip}`,
       };
 
       useLogsStore.getState().pushLog(log);
     }, 10_000);
 
-    // Heartbeat logs
+    // ---------------------
+    // System heartbeat
+    // ---------------------
     setInterval(() => {
       const heartbeat: WSLogEntry = {
         type: "log_entry",
         timestamp: new Date().toLocaleTimeString("en-GB"),
         level: "INFO",
-        message: "WS heartbeat OK",
         channel: "system",
+        message: "WS heartbeat OK",
       };
 
       useLogsStore.getState().pushLog(heartbeat);

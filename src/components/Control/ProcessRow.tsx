@@ -1,4 +1,5 @@
 // src/components/control/ProcessRow.tsx
+import type { MouseEvent } from "react";
 import type { Process } from "../../types/Process";
 import { FileText } from "lucide-react";
 
@@ -21,14 +22,19 @@ export default function ProcessRow({
     onSelect(process.name);
   };
 
-  const handleStart = (e: React.MouseEvent) => {
+  const handleStart = (e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     onStart(process.name);
   };
 
-  const handleStop = (e: React.MouseEvent) => {
+  const handleStop = (e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     onStop(process.name);
+  };
+
+  const handleLogClick = (e: MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    onSelect(process.name);
   };
 
   const running = process.status === "up";
@@ -44,6 +50,7 @@ export default function ProcessRow({
       <td className="px-3 py-1.5">{process.name}</td>
       <td className="px-3 py-1.5">{process.host}</td>
       <td className="px-3 py-1.5">{process.port}</td>
+
       <td className="px-3 py-1.5">
         <span
           className={`
@@ -60,11 +67,13 @@ export default function ProcessRow({
           {running ? "up" : "down"}
         </span>
       </td>
+
       <td className="px-3 py-1.5">{process.pid ?? "-"}</td>
       <td className="px-3 py-1.5">{process.mem ?? "-"}</td>
+
       <td className="px-3 py-1.5">
         <button
-          onClick={() => onSelect?.(process.name)}
+          onClick={handleLogClick}
           className="text-gray-400 hover:text-blue-400 transition"
         >
           <FileText size={16} />

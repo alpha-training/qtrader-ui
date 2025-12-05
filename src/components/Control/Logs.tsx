@@ -13,18 +13,15 @@ type LogsProps = {
 };
 
 export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
-  // -------------------------------
   // STORES
-  // -------------------------------
   const logs = useLogsStore((s) => s.logs);
   const pushLog = useLogsStore((s) => s.pushLog);
   const clearLogs = useLogsStore((s) => s.clearLogs);
 
+  const processes = useProcessStore((s) => s.processes);
   const setSelectedProcess = useProcessStore((s) => s.setSelectedProcess);
 
-  // -------------------------------
   // LOCAL UI STATE
-  // -------------------------------
   const [showInfo, setShowInfo] = useState(true);
   const [showError, setShowError] = useState(true);
   const [autoScroll, setAutoScroll] = useState(true);
@@ -32,9 +29,7 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
 
   const logRef = useRef<HTMLDivElement>(null);
 
-  // -------------------------------
   // INITIAL LOAD FROM API (mock)
-  // -------------------------------
   useEffect(() => {
     async function load() {
       try {
@@ -49,18 +44,17 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
     load();
   }, [clearLogs, pushLog]);
 
-  // -------------------------------
-  // CHANNEL TABS (auto-generated)
-  // -------------------------------
-  const uniqueChannels = Array.from(
-    new Set(logs.map((l) => l.channel))
-  ).sort();
+  // CHANNEL TABS ORDER (Option B)
+  const processNames = processes.map((p) => p.name);
+  const logChannels = Array.from(new Set(logs.map((l) => l.channel)));
 
-  const channels = ["All", ...uniqueChannels];
+  const extraChannels = logChannels
+    .filter((ch) => !processNames.includes(ch))
+    .sort();
 
-  // -------------------------------
+  const channels = ["All", ...processNames, ...extraChannels];
+
   // FILTERED LOGS
-  // -------------------------------
   const filteredLogs = logs.filter((log) => {
     const matchChannel =
       selectedChannel === "All" || log.channel === selectedChannel;
@@ -72,25 +66,21 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
     return matchChannel && matchLevel;
   });
 
-  // -------------------------------
   // AUTO-SCROLL
-  // -------------------------------
   useEffect(() => {
     if (autoScroll && logRef.current) {
       logRef.current.scrollTop = logRef.current.scrollHeight;
     }
   }, [filteredLogs, autoScroll]);
 
-  // -------------------------------
   // REFRESH (fake/manual)
-  // -------------------------------
   const refreshLogs = async () => {
     setIsRefreshing(true);
 
-    // В реале будет logsApi.getAll() или logsApi.getByChannel(...)
     await new Promise((res) => setTimeout(res, 500));
 
     pushLog({
+      type: "log_entry",
       timestamp: new Date().toLocaleTimeString("en-GB"),
       level: "INFO",
       channel: selectedChannel === "All" ? "system" : selectedChannel,
@@ -100,21 +90,15 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
     setIsRefreshing(false);
   };
 
-  // -------------------------------
   // CHANNEL CLICK HANDLER
-  // -------------------------------
   const handleChannelClick = (channel: string) => {
     onChannelChange(channel);
 
-    // При клике по вкладке подсвечиваем строку в таблице
     if (channel !== "All") {
       setSelectedProcess(channel);
     }
   };
 
-  // -------------------------------
-  // RENDER
-  // -------------------------------
   return (
     <div className="mt-4">
       {/* Title + Refresh */}
@@ -178,7 +162,6 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
           error
         </label>
 
-        {/* Auto-scroll */}
         <div className="flex items-center gap-1 ml-auto text-xs">
           Auto-scroll
           <button
