@@ -1,6 +1,7 @@
 // src/App.tsx
 import { useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+
 import PageLayout from "./components/layout/PageLayout";
 import ControlPage from "./pages/ControlPage";
 import StratsPage from "./pages/StratsPage";
@@ -10,29 +11,34 @@ import OrdersPage from "./pages/OrdersPage";
 import RiskPage from "./pages/RiskPage";
 import LogsPage from "./pages/LogsPage";
 import SettingsPage from "./pages/SettingsPage";
-import wsClient from "./ws/wsClient";
+
+import { wsClient } from "./ws/wsProvider"; 
+import WsBanner from "./components/UI/WsBanner";
 
 function App() {
   useEffect(() => {
     wsClient.connect();
   }, []);
 
-
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route element={<PageLayout />}>
-          <Route path="/" element={<ControlPage />} />
-          <Route path="/strats" element={<StratsPage />} />
-          <Route path="/charts" element={<ChartsPage />} />
-          <Route path="/data" element={<DataPage />} />
-          <Route path="/orders" element={<OrdersPage />} />
-          <Route path="/risk" element={<RiskPage />} />
-          <Route path="/logs" element={<LogsPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <>
+      <WsBanner />
+
+      <BrowserRouter>
+        <Routes>
+          <Route element={<PageLayout />}>
+            <Route path="/" element={<ControlPage />} />
+            <Route path="/strats" element={<StratsPage />} />
+            <Route path="/charts" element={<ChartsPage />} />
+            <Route path="/data" element={<DataPage />} />
+            <Route path="/orders" element={<OrdersPage />} />
+            <Route path="/risk" element={<RiskPage />} />
+            <Route path="/logs" element={<LogsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </>
   );
 }
 

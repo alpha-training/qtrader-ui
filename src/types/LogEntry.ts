@@ -3,7 +3,8 @@ export type LogLevel = "INFO" | "ERROR";
 
 export type LogEntry = {
   timestamp: string;
-  level: LogLevel;
-  message: string;
+  level: string;
   channel: string;
+  message: string;
+  type?: string;  
 };

@@ -1,4 +1,3 @@
-// src/store/processStore.ts
 import { create } from "zustand";
 import type { Process } from "../types/Process";
 
@@ -6,9 +5,12 @@ type ProcessState = {
   processes: Process[];
   selectedProcess: string | null;
 
-  setProcesses: (list: Process[]) => void;
-  updateProcess: (p: Process) => void;
+  setProcesses: (items: Process[]) => void;
   setSelectedProcess: (name: string | null) => void;
+
+  // NEW:
+  updateStatus: (name: string, status: "up" | "down") => void;
+  updateProcess: (updated: Partial<Process> & { name: string }) => void;
 
   startOne: (name: string) => void;
   stopOne: (name: string) => void;
@@ -20,46 +22,45 @@ export const useProcessStore = create<ProcessState>((set) => ({
   processes: [],
   selectedProcess: null,
 
-  setProcesses: (list) => set({ processes: list }),
+  setProcesses: (items) => set({ processes: items }),
 
-  updateProcess: (p) =>
+  setSelectedProcess: (name) => set({ selectedProcess: name }),
+
+  updateStatus: (name, status) =>
     set((state) => ({
-      processes: state.processes.map((x) =>
-        x.name === p.name ? { ...x, ...p } : x
+      processes: state.processes.map((p) =>
+        p.name === name ? { ...p, status } : p
       ),
     })),
 
-  setSelectedProcess: (name) => set({ selectedProcess: name }),
+  updateProcess: (updated) =>
+    set((state) => ({
+      processes: state.processes.map((p) =>
+        p.name === updated.name ? { ...p, ...updated } : p
+      ),
+    })),
 
   startOne: (name) =>
     set((state) => ({
       processes: state.processes.map((p) =>
-        p.name === name ? { ...p, status: "up", pid: 1000 } : p
+        p.name === name ? { ...p, status: "up" } : p
       ),
     })),
 
   stopOne: (name) =>
     set((state) => ({
       processes: state.processes.map((p) =>
-        p.name === name ? { ...p, status: "down", pid: null } : p
+        p.name === name ? { ...p, status: "down" } : p
       ),
     })),
 
   startAll: () =>
     set((state) => ({
-      processes: state.processes.map((p) => ({
-        ...p,
-        status: "up",
-        pid: 1000,
-      })),
+      processes: state.processes.map((p) => ({ ...p, status: "up" })),
     })),
 
   stopAll: () =>
     set((state) => ({
-      processes: state.processes.map((p) => ({
-        ...p,
-        status: "down",
-        pid: null,
-      })),
+      processes: state.processes.map((p) => ({ ...p, status: "down" })),
     })),
 }));
