@@ -42,27 +42,40 @@ export function wsRouter(raw: any) {
 
     case "process_start_ok": {
       const { process } = msg;
+      
+      useProcessStore.getState().updateStatus(process, "up");
+      useProcessStore.getState().clearPending(process);
+    
       console.info(`Process started: ${process}`);
       break;
     }
-
+    
     case "process_start_error": {
-      const { process, error } = msg;
-      console.error(`Failed to start ${process}:`, error);
+      const { process } = msg;
+    
+      useProcessStore.getState().clearPending(process);
+      console.error(`Failed to start ${process}`);
       break;
     }
-
+    
     case "process_stop_ok": {
       const { process } = msg;
+    
+      useProcessStore.getState().updateStatus(process, "down");
+      useProcessStore.getState().clearPending(process);
+    
       console.info(`Process stopped: ${process}`);
       break;
     }
-
+    
     case "process_stop_error": {
-      const { process, error } = msg;
-      console.error(`Failed to stop ${process}:`, error);
+      const { process } = msg;
+    
+      useProcessStore.getState().clearPending(process);
+      console.error(`Failed to stop ${process}`);
       break;
     }
+    
 
     case "logs_page": {
       const { logs } = msg;
