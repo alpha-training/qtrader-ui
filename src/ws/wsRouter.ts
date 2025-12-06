@@ -60,10 +60,10 @@ export function wsRouter(raw: any) {
     // ======================================================
     case "process_start_ok": {
       const p = msg.process;
-
+    
       useProcessStore.getState().updateStatus(p, "up");
       useProcessStore.getState().clearPending(p);
-
+    
       useToastStore.getState().push("success", `Process ${p} started`);
       break;
     }
@@ -87,11 +87,12 @@ export function wsRouter(raw: any) {
     // ======================================================
     case "process_stop_ok": {
       const p = msg.process;
-
+    
       useProcessStore.getState().updateStatus(p, "down");
       useProcessStore.getState().clearPending(p);
-
-      useToastStore.getState().push("success", `Process ${p} stopped`);
+    
+      // ORANGE TOAST FOR STOP
+      useToastStore.getState().push("warning", `Process ${p} stopped`);
       break;
     }
 
@@ -109,6 +110,24 @@ export function wsRouter(raw: any) {
       break;
     }
 
+    case "process_start_all_ok": {
+      useToastStore.getState().pushGroup(
+        "bulk-start",
+        "success",
+        "All processes started"
+      );
+      break;
+    }
+    
+    case "process_stop_all_ok": {
+      useToastStore.getState().pushGroup(
+        "bulk-stop",
+        "warning",
+        "All processes stopped"
+      );
+      break;
+    }
+    
     // ======================================================
     // LOGS PAGINATION
     // ======================================================

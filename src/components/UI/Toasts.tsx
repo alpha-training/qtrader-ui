@@ -4,30 +4,44 @@ import { useToastStore } from "../../store/toastStore";
 export default function Toasts() {
   const { toasts, remove } = useToastStore();
 
+  // Auto-remove after 3.5s
   useEffect(() => {
     const timers = toasts.map((t) =>
-      setTimeout(() => remove(t.id), 3000)
+      setTimeout(() => remove(t.id), 3500)
     );
     return () => timers.forEach(clearTimeout);
   }, [toasts, remove]);
 
+  // Color classes
+  const color = {
+    success: "bg-green-600 text-white",
+    error: "bg-red-600 text-white",
+    warning: "bg-amber-500 text-black",
+    info: "bg-gray-700 text-white",
+  };
+
   return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2">
+    <div className="fixed top-4 right-4 z-50 space-y-2 w-80">
       {toasts.map((t) => (
         <div
           key={t.id}
           className={`
-            px-3 py-2 rounded-md text-sm shadow-md border
-            ${
-              t.type === "success"
-                ? "bg-green-600/20 border-green-500 text-green-300"
-                : t.type === "error"
-                ? "bg-red-600/20 border-red-500 text-red-300"
-                : "bg-blue-600/20 border-blue-500 text-blue-300"
-            }
+            flex items-start justify-between px-3 py-2 rounded-sm shadow-md 
+            text-xs animate-slideIn opacity-95 hover:opacity-100 transition
+            ${color[t.type] ?? color.info}
           `}
         >
-          {t.text}
+          {/* Message */}
+          <span className="pr-3 leading-snug">{t.text}</span>
+
+          {/* Close button */}
+          <button
+            onClick={() => remove(t.id)}
+            className="text-black/50 hover:text-black ml-2
+                       dark:text-white/70 dark:hover:text-white"
+          >
+            ✕
+          </button>
         </div>
       ))}
     </div>
