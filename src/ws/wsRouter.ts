@@ -1,11 +1,13 @@
 // src/ws/wsRouter.ts
 import { useProcessStore } from "../store/processStore";
 import { useLogsStore } from "../store/logsStore";
+import { useToastStore } from "../store/toastStore";
 import { wsClient } from "./wsProvider";
 
 export function wsRouter(raw: any) {
   let msg = raw;
 
+  // Accept string or JSON
   if (typeof raw === "string") {
     try {
       msg = JSON.parse(raw);
@@ -16,70 +18,102 @@ export function wsRouter(raw: any) {
   }
 
   switch (msg.type) {
+    // ======================================================
+    // PROCESS UPDATE
+    // ======================================================
     case "process_update": {
-      const { process } = msg;
-      useProcessStore.getState().updateProcess(process);
+      useProcessStore.getState().updateProcess(msg.process);
       break;
     }
 
     case "process_list": {
-      const { processes } = msg;
-      useProcessStore.getState().setProcesses(processes);
+      useProcessStore.getState().setProcesses(msg.processes);
       break;
     }
 
-    // ⭐ UPDATED TO USE BUFFER
+    // ======================================================
+    // LOG ENTRY
+    // ======================================================
     case "log_entry": {
-      const { log } = msg;
-      wsClient.bufferLog(log);
+      const log = msg.log;
+
+      // Prefer wsProvider batching
+      if ("bufferLog" in wsClient) {
+        (wsClient as any).bufferLog(log);
+      } else {
+        // Fallback (mock WS)
+        useLogsStore.getState().pushLog(log);
+      }
       break;
     }
 
+    // ======================================================
+    // HEARTBEAT
+    // ======================================================
     case "heartbeat": {
-      console.debug("WS heartbeat:", msg.timestamp);
+      // console.debug("Heartbeat:", msg.timestamp);
       break;
     }
 
+    // ======================================================
+    // PROCESS START SUCCESS
+    // ======================================================
     case "process_start_ok": {
-      const { process } = msg;
-      
-      useProcessStore.getState().updateStatus(process, "up");
-      useProcessStore.getState().clearPending(process);
-    
-      console.info(`Process started: ${process}`);
-      break;
-    }
-    
-    case "process_start_error": {
-      const { process } = msg;
-    
-      useProcessStore.getState().clearPending(process);
-      console.error(`Failed to start ${process}`);
-      break;
-    }
-    
-    case "process_stop_ok": {
-      const { process } = msg;
-    
-      useProcessStore.getState().updateStatus(process, "down");
-      useProcessStore.getState().clearPending(process);
-    
-      console.info(`Process stopped: ${process}`);
-      break;
-    }
-    
-    case "process_stop_error": {
-      const { process } = msg;
-    
-      useProcessStore.getState().clearPending(process);
-      console.error(`Failed to stop ${process}`);
-      break;
-    }
-    
+      const p = msg.process;
 
+      useProcessStore.getState().updateStatus(p, "up");
+      useProcessStore.getState().clearPending(p);
+
+      useToastStore.getState().push("success", `Process ${p} started`);
+      break;
+    }
+
+    // ======================================================
+    // PROCESS START ERROR
+    // ======================================================
+    case "process_start_error": {
+      const p = msg.process;
+
+      useProcessStore.getState().clearPending(p);
+
+      useToastStore
+        .getState()
+        .push("error", `Failed to start ${p}: ${msg.error ?? "unknown error"}`);
+      break;
+    }
+
+    // ======================================================
+    // PROCESS STOP SUCCESS
+    // ======================================================
+    case "process_stop_ok": {
+      const p = msg.process;
+
+      useProcessStore.getState().updateStatus(p, "down");
+      useProcessStore.getState().clearPending(p);
+
+      useToastStore.getState().push("success", `Process ${p} stopped`);
+      break;
+    }
+
+    // ======================================================
+    // PROCESS STOP ERROR
+    // ======================================================
+    case "process_stop_error": {
+      const p = msg.process;
+
+      useProcessStore.getState().clearPending(p);
+
+      useToastStore
+        .getState()
+        .push("error", `Failed to stop ${p}: ${msg.error ?? "unknown error"}`);
+      break;
+    }
+
+    // ======================================================
+    // LOGS PAGINATION
+    // ======================================================
     case "logs_page": {
-      const { logs } = msg;
-      useLogsStore.getState().prependLogs(logs);
+      useLogsStore.getState().prependLogs(msg.logs);
       break;
     }
 
@@ -88,6 +122,9 @@ export function wsRouter(raw: any) {
       break;
     }
 
+    // ======================================================
+    // UNKNOWN
+    // ======================================================
     default:
       console.warn("Unknown WS message:", msg);
   }

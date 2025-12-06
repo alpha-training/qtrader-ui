@@ -13,14 +13,23 @@ import SettingsPage from "./pages/SettingsPage";
 
 import { wsClient } from "./ws";
 import WsBanner from "./components/UI/WsBanner";
+import Toasts from "./components/UI/Toasts";
 
 function App() {
   useEffect(() => {
     wsClient.connect();
   }, []);
+  useEffect(() => {
+    console.log("[APP] Using WS client:", wsClient);
+    wsClient.connect();
+  }, []);
+  
 
   return (
     <>
+      {/* Toasts should be global & top-level */}
+      <Toasts />
+
       <WsBanner />
 
       <BrowserRouter>
