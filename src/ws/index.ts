@@ -1,6 +1,6 @@
 import { config } from "../config";
 import { mockWsClient } from "./mockWsClient";
-import { realWsClient } from "./wsProvider";
+import { wsClient as realWsClient } from "./wsProvider";  
 
 export const wsClient =
   config.apiMode === "real" ? realWsClient : mockWsClient;

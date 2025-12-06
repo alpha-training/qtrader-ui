@@ -6,6 +6,7 @@ import LogEntry from "./LogEntry";
 import { useLogsStore } from "../../store/logsStore";
 import { useProcessStore } from "../../store/processStore";
 import { logsApi } from "../../api/logsApi";
+import { wsClient } from "../../ws/wsProvider";   // ⭐ ADDED
 
 type LogsProps = {
   selectedChannel: string;
@@ -44,7 +45,7 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
     load();
   }, [clearLogs, pushLog]);
 
-  // CHANNEL TABS ORDER (Option B)
+  // CHANNEL TABS ORDER
   const processNames = processes.map((p) => p.name);
   const logChannels = Array.from(new Set(logs.map((l) => l.channel)));
 
@@ -72,6 +73,26 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
       logRef.current.scrollTop = logRef.current.scrollHeight;
     }
   }, [filteredLogs, autoScroll]);
+
+  // ⭐ PAGINATION SCROLL HANDLER (NEW)
+  useEffect(() => {
+    const el = logRef.current;
+    if (!el) return;
+
+    const handleScroll = () => {
+      if (el.scrollTop < 50) {
+        const first = logs[0];
+        if (first) {
+          wsClient.requestLogsPage(first.timestamp);
+        } else {
+          wsClient.requestLogsPage();
+        }
+      }
+    };
+
+    el.addEventListener("scroll", handleScroll);
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, [logs]);
 
   // REFRESH (fake/manual)
   const refreshLogs = async () => {
