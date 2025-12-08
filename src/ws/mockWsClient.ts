@@ -46,19 +46,19 @@ class MockWsClient implements IWebSocketClient {
       const nextPending = state.pending;
       const nextBulk = state.isBulkOperation;
 
-      // 🔥 Bulk start
+      //  Bulk start
       if (!prevBulk && nextBulk && Object.values(nextPending).includes("start")) {
         console.log("[MOCK] simulate bulk START");
         this.processStartAll();
       }
 
-      // 🔥 Bulk stop
+      //  Bulk stop
       if (!prevBulk && nextBulk && Object.values(nextPending).includes("stop")) {
         console.log("[MOCK] simulate bulk STOP");
         this.processStopAll();
       }
 
-      // 🔥 Single process detection
+      //  Single process detection
       for (const name of Object.keys(nextPending)) {
         const before = prevPending[name];
         const after = nextPending[name];

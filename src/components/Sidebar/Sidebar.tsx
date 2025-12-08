@@ -11,7 +11,7 @@ import {
 import SidebarItem from "./SidebarItem";
 //mport { useTheme } from "../../hooks/useTheme";
 // import { Sun, Moon } from "lucide-react";
-import logo from "../../assets/alpha-kdb-logo.png";
+import logo from "../../assets/qtrader-logo.png";
 
 export default function Sidebar() {
   //const { theme, toggleTheme } = useTheme();
@@ -20,7 +20,7 @@ export default function Sidebar() {
     <aside className="w-56 h-screen bg-[#0f1419] border-r border-gray-800 flex flex-col p-2">
 
       {/* Logo */}
-      <div className="flex items-center gap-3 mb-8 px-2">
+      <div className="flex items-center gap-3 mb-8 px-2 py-2">
         <img src={logo} className="h-8 w-auto object-contain"loading="eager" alt="AlphaKDB logo" />
        {/*  <span className="text-xl font-semibold">qtrader</span> */}
       </div>
