@@ -1,15 +1,18 @@
 // src/store/processStore.ts
 import { create } from "zustand";
 import type { Process } from "../types/Process";
-import { wsClient } from "../ws";   // ⭐ ADDED — allows store to call WS
 
-type PendingAction = "start" | "stop" | null;
+export type PendingAction = "start" | "stop" | null;
 
 type ProcessState = {
   processes: Process[];
   selectedProcess: string | null;
 
   pending: Record<string, PendingAction>;
+
+  // MUST EXIST FOR wsRouter + mockWsClient
+  isBulkOperation: boolean;
+  setBulkMode: (v: boolean) => void;
 
   setProcesses: (items: Process[]) => void;
   setSelectedProcess: (name: string | null) => void;
@@ -33,10 +36,15 @@ export const useProcessStore = create<ProcessState>((set) => ({
   selectedProcess: null,
   pending: {},
 
+  // REQUIRED FIELD
+  isBulkOperation: false,
+  setBulkMode: (v) => set({ isBulkOperation: v }),
+
   setProcesses: (items) =>
     set({
       processes: items,
-      pending: {}, // reset pending when list refreshes
+      pending: {},
+      isBulkOperation: false,
     }),
 
   setSelectedProcess: (name) => set({ selectedProcess: name }),
@@ -55,61 +63,49 @@ export const useProcessStore = create<ProcessState>((set) => ({
       ),
     })),
 
-  // ---------------------------------------------------
-  // Pending helpers
-  // ---------------------------------------------------
   setPending: (name, action) =>
-    set((state) => ({
-      pending: { ...state.pending, [name]: action },
+    set((s) => ({
+      pending: { ...s.pending, [name]: action },
     })),
 
   clearPending: (name) =>
-    set((state) => ({
-      pending: { ...state.pending, [name]: null },
+    set((s) => ({
+      pending: { ...s.pending, [name]: null },
     })),
 
   clearAllPending: () => set({ pending: {} }),
 
-  // ---------------------------------------------------
-  // Start/Stop with WS integration
-  // ---------------------------------------------------
   startOne: (name) =>
-    set((state) => {
-      wsClient.processStart?.(name);   // ⭐ send WS start
-      return {
-        pending: { ...state.pending, [name]: "start" },
-      };
-    }),
+    set((s) => ({
+      pending: { ...s.pending, [name]: "start" },
+      isBulkOperation: false,
+    })),
 
   stopOne: (name) =>
-    set((state) => {
-      wsClient.processStop?.(name);    // ⭐ send WS stop
-      return {
-        pending: { ...state.pending, [name]: "stop" },
-      };
-    }),
+    set((s) => ({
+      pending: { ...s.pending, [name]: "stop" },
+      isBulkOperation: false,
+    })),
 
   startAll: () =>
-    set((state) => {
-      const next: Record<string, PendingAction> = {};
+    set((s) => {
+      const pendingAll: Record<string, PendingAction> = {};
+      s.processes.forEach((p) => (pendingAll[p.name] = "start"));
 
-      for (const p of state.processes) {
-        next[p.name] = "start";
-        wsClient.processStart?.(p.name); // ⭐ WS call
-      }
-
-      return { pending: next };
+      return {
+        pending: pendingAll,
+        isBulkOperation: true,
+      };
     }),
 
   stopAll: () =>
-    set((state) => {
-      const next: Record<string, PendingAction> = {};
+    set((s) => {
+      const pendingAll: Record<string, PendingAction> = {};
+      s.processes.forEach((p) => (pendingAll[p.name] = "stop"));
 
-      for (const p of state.processes) {
-        next[p.name] = "stop";
-        wsClient.processStop?.(p.name); // ⭐ WS call
-      }
-
-      return { pending: next };
+      return {
+        pending: pendingAll,
+        isBulkOperation: true,
+      };
     }),
 }));

@@ -1,12 +1,18 @@
 // src/ws/mockWsClient.ts
 import type { IWebSocketClient } from "./IWebSocketClient";
+import { useProcessStore } from "../store/processStore";
 import { useWsStore } from "../store/wsStore";
+import { useLogsStore } from "../store/logsStore";
 import { wsRouter } from "./wsRouter";
 
-export class MockWsClient implements IWebSocketClient {
-  ws: null = null;
-  reconnectTimer: null = null;
+class MockWsClient implements IWebSocketClient {
+  ws = null;
+  reconnectTimer: number | null = null;
   manualClose = false;
+
+  // Prevent duplicate listeners & intervals
+  private pendingListenerInstalled = false;
+  private logInterval: number | null = null;
 
   connect() {
     console.log("Mock WS: connecting...");
@@ -16,103 +22,118 @@ export class MockWsClient implements IWebSocketClient {
       console.log("Mock WS: connected");
       useWsStore.getState().setConnected();
 
-      // send initial process list
-      this.sendInitialProcesses();
-      this.startMockLogs();
+      if (!this.pendingListenerInstalled) {
+        this.installPendingListener();
+        this.pendingListenerInstalled = true;
+      }
+
+      if (!this.logInterval) {
+        this.startMockLogs();
+      }
     }, 400);
   }
 
-  // ------------------------------------------------
-  // These mirror real WS API used by processStore
-  // ------------------------------------------------
-  processStart(name: string) {
-    console.log("[MOCK] processStart", name);
+  // --------------------------------------------------
+  // LISTEN FOR pending state changes (start/stop)
+  // --------------------------------------------------
+  installPendingListener() {
+    console.log("[MOCK] installPendingListener");
 
-    setTimeout(() => {
-      wsRouter(
-        JSON.stringify({
-          type: "process_start_ok",
-          process: name,
-        })
-      );
-    }, 800);
+    let prevPending = useProcessStore.getState().pending;
+    let prevBulk = useProcessStore.getState().isBulkOperation;
+
+    useProcessStore.subscribe((state) => {
+      const nextPending = state.pending;
+      const nextBulk = state.isBulkOperation;
+
+      // 🔥 Bulk start
+      if (!prevBulk && nextBulk && Object.values(nextPending).includes("start")) {
+        console.log("[MOCK] simulate bulk START");
+        this.processStartAll();
+      }
+
+      // 🔥 Bulk stop
+      if (!prevBulk && nextBulk && Object.values(nextPending).includes("stop")) {
+        console.log("[MOCK] simulate bulk STOP");
+        this.processStopAll();
+      }
+
+      // 🔥 Single process detection
+      for (const name of Object.keys(nextPending)) {
+        const before = prevPending[name];
+        const after = nextPending[name];
+
+        if (before !== after && after !== null) {
+          if (after === "start") this.simulateStart(name);
+          if (after === "stop") this.simulateStop(name);
+        }
+      }
+
+      prevPending = nextPending;
+      prevBulk = nextBulk;
+    });
   }
 
-  processStop(name: string) {
-    console.log("[MOCK] processStop", name);
+  // --------------------------------------------------
+  // SIMULATED BACKEND RESPONSES
+  // --------------------------------------------------
+  simulateStart(name: string) {
+    console.log(`[MOCK] simulateStart(${name})`);
 
     setTimeout(() => {
-      wsRouter(
-        JSON.stringify({
-          type: "process_stop_ok",
-          process: name,
-        })
-      );
-    }, 800);
+      wsRouter({
+        type: "process_start_ok",
+        process: name,
+      });
+    }, 200);
   }
 
-  requestLogsPage(beforeTimestamp?: string) {
+  simulateStop(name: string) {
+    console.log(`[MOCK] simulateStop(${name})`);
+
     setTimeout(() => {
-      wsRouter(
-        JSON.stringify({
-          type: "logs_page",
-          logs: [
-            {
-              timestamp: "08:00:00",
-              level: "INFO",
-              channel: "system",
-              message: "Older log entry (mock)",
-            },
-          ],
-        })
-      );
+      wsRouter({
+        type: "process_stop_ok",
+        process: name,
+      });
+    }, 200);
+  }
+
+  // Bulk start/stop
+  processStartAll() {
+    setTimeout(() => {
+      wsRouter({ type: "process_start_all_ok" });
     }, 300);
+  }
+
+  processStopAll() {
+    setTimeout(() => {
+      wsRouter({ type: "process_stop_all_ok" });
+    }, 300);
+  }
+
+  // --------------------------------------------------
+  // Mock logs (runs once)
+  // --------------------------------------------------
+  startMockLogs() {
+    this.logInterval = window.setInterval(() => {
+      useLogsStore.getState().pushLog({
+        timestamp: new Date().toLocaleTimeString("en-GB"),
+        level: "INFO",
+        channel: "system",
+        message: "WS heartbeat OK (mock)",
+      });
+    }, 2500);
   }
 
   close() {
     this.manualClose = true;
     useWsStore.getState().setClosed();
-  }
 
-  // ------------------------------------------------
-  // MOCK data streams
-  // ------------------------------------------------
-  private sendInitialProcesses() {
-    const processes = [
-      { name: "tp1", host: "localhost", port: 5010, status: "up" },
-      { name: "tp2", host: "localhost", port: 5011, status: "down" },
-      { name: "rdb1", host: "localhost", port: 5020, status: "up" },
-      { name: "rdb2", host: "localhost", port: 5021, status: "up" },
-      { name: "wdb1", host: "localhost", port: 5030, status: "down" },
-      { name: "wdb2", host: "localhost", port: 5031, status: "up" },
-      { name: "hdb1", host: "localhost", port: 5040, status: "up" },
-      { name: "hdb2", host: "localhost", port: 5041, status: "down" },
-      { name: "pxfeed", host: "localhost", port: 5050, status: "up" },
-      { name: "oms", host: "localhost", port: 5060, status: "down" },
-    ];
-
-    wsRouter(
-      JSON.stringify({
-        type: "process_list",
-        processes,
-      })
-    );
-  }
-
-  private startMockLogs() {
-    setInterval(() => {
-      wsRouter(
-        JSON.stringify({
-          type: "log_entry",
-          log: {
-            timestamp: new Date().toLocaleTimeString("en-GB"),
-            level: "INFO",
-            channel: "system",
-            message: "WS heartbeat OK (mock)",
-          },
-        })
-      );
-    }, 3000);
+    if (this.logInterval) {
+      clearInterval(this.logInterval);
+      this.logInterval = null;
+    }
   }
 }
 

@@ -17,19 +17,13 @@ import Toasts from "./components/UI/Toasts";
 
 function App() {
   useEffect(() => {
+    console.log("[APP] Initializing WS client");
     wsClient.connect();
   }, []);
-  useEffect(() => {
-    console.log("[APP] Using WS client:", wsClient);
-    wsClient.connect();
-  }, []);
-  
 
   return (
     <>
-      {/* Toasts should be global & top-level */}
       <Toasts />
-
       <WsBanner />
 
       <BrowserRouter>
@@ -49,5 +43,6 @@ function App() {
     </>
   );
 }
+
 
 export default App;
