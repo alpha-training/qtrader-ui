@@ -1,111 +1,119 @@
-// src/store/processStore.ts
 import { create } from "zustand";
 import type { Process } from "../types/Process";
+import { processApi } from "../api/processApi";
+
 
 export type PendingAction = "start" | "stop" | null;
 
 type ProcessState = {
   processes: Process[];
   selectedProcess: string | null;
-
   pending: Record<string, PendingAction>;
 
-  // MUST EXIST FOR wsRouter + mockWsClient
   isBulkOperation: boolean;
   setBulkMode: (v: boolean) => void;
 
   setProcesses: (items: Process[]) => void;
   setSelectedProcess: (name: string | null) => void;
 
-  updateStatus: (name: string, status: "up" | "down") => void;
-  updateProcess: (updated: Partial<Process> & { name: string }) => void;
-
   setPending: (name: string, action: PendingAction) => void;
   clearPending: (name: string) => void;
   clearAllPending: () => void;
 
-  startOne: (name: string) => void;
-  stopOne: (name: string) => void;
-
-  startAll: () => void;
-  stopAll: () => void;
+  startOne: (name: string) => Promise<void>;
+  stopOne: (name: string) => Promise<void>;
+  startAll: () => Promise<void>;
+  stopAll: () => Promise<void>;
 };
 
-export const useProcessStore = create<ProcessState>((set) => ({
+export const useProcessStore = create<ProcessState>((set, get) => ({
   processes: [],
   selectedProcess: null,
   pending: {},
 
-  // REQUIRED FIELD
   isBulkOperation: false,
   setBulkMode: (v) => set({ isBulkOperation: v }),
 
   setProcesses: (items) =>
-    set({
-      processes: items,
-      pending: {},
-      isBulkOperation: false,
-    }),
+  set((s) => ({
+    processes: items,
+    // ✅ keep pending state for any existing process names
+    pending: Object.fromEntries(
+      items.map((p) => [p.name, s.pending[p.name] ?? null])
+    ),
+    // ✅ don't reset bulk mode on every poll
+    isBulkOperation: s.isBulkOperation,
+  })),
 
   setSelectedProcess: (name) => set({ selectedProcess: name }),
 
-  updateStatus: (name, status) =>
-    set((state) => ({
-      processes: state.processes.map((p) =>
-        p.name === name ? { ...p, status } : p
-      ),
-    })),
-
-  updateProcess: (updated) =>
-    set((state) => ({
-      processes: state.processes.map((p) =>
-        p.name === updated.name ? { ...p, ...updated } : p
-      ),
-    })),
-
   setPending: (name, action) =>
-    set((s) => ({
-      pending: { ...s.pending, [name]: action },
-    })),
+    set((s) => ({ pending: { ...s.pending, [name]: action } })),
 
   clearPending: (name) =>
-    set((s) => ({
-      pending: { ...s.pending, [name]: null },
-    })),
+    set((s) => ({ pending: { ...s.pending, [name]: null } })),
 
   clearAllPending: () => set({ pending: {} }),
 
-  startOne: (name) =>
+  startOne: async (name) => {
     set((s) => ({
       pending: { ...s.pending, [name]: "start" },
       isBulkOperation: false,
-    })),
-
-  stopOne: (name) =>
+    }));
+  
+    try {
+      await processApi.start(name);
+    } finally {
+      set((s) => ({ pending: { ...s.pending, [name]: null } }));
+    }
+  },
+  
+  stopOne: async (name) => {
     set((s) => ({
       pending: { ...s.pending, [name]: "stop" },
       isBulkOperation: false,
-    })),
-
-  startAll: () =>
+    }));
+  
+    try {
+      await processApi.stop(name);
+    } finally {
+      set((s) => ({ pending: { ...s.pending, [name]: null } }));
+    }
+  },
+  
+  startAll: async () => {
     set((s) => {
       const pendingAll: Record<string, PendingAction> = {};
       s.processes.forEach((p) => (pendingAll[p.name] = "start"));
-
-      return {
-        pending: pendingAll,
-        isBulkOperation: true,
-      };
-    }),
-
-  stopAll: () =>
+      return { pending: { ...s.pending, ...pendingAll }, isBulkOperation: true };
+    });
+  
+    try {
+      await processApi.startAll();
+    } finally {
+      set((s) => {
+        const cleared = { ...s.pending };
+        s.processes.forEach((p) => (cleared[p.name] = null));
+        return { pending: cleared, isBulkOperation: false };
+      });
+    }
+  },
+  
+  stopAll: async () => {
     set((s) => {
       const pendingAll: Record<string, PendingAction> = {};
       s.processes.forEach((p) => (pendingAll[p.name] = "stop"));
-
-      return {
-        pending: pendingAll,
-        isBulkOperation: true,
-      };
-    }),
+      return { pending: { ...s.pending, ...pendingAll }, isBulkOperation: true };
+    });
+  
+    try {
+      await processApi.stopAll();
+    } finally {
+      set((s) => {
+        const cleared = { ...s.pending };
+        s.processes.forEach((p) => (cleared[p.name] = null));
+        return { pending: cleared, isBulkOperation: false };
+      });
+    }
+  },
 }));

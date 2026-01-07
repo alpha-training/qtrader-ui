@@ -49,6 +49,12 @@ function normalizeProcesses(payload: any): Process[] {
         status: toStatus(r.status),
         pid: r.pid ?? null,
         mem: formatMem(r),
+      
+        // ✅ keep these for UI state
+        goal: r.goal ?? null,
+        attempts: r.attempts ?? null,
+        laststart: r.laststart ?? null,
+        lastheartbeat: r.lastheartbeat ?? null,
       }))
       .filter((p) => Number.isFinite(p.port) && p.port > 0);
   }

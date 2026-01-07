@@ -11,12 +11,13 @@ import ConfirmStopAllModal from "../UI/ConfirmStopAllModal";
 
 import { useProcessStore } from "../../store/processStore";
 import { usePrefs } from "../../hooks/usePrefs";
-import { fetchProcesses } from "../../api/processes";
+import { processApi } from "../../api/processApi";
 
 type ControlTableProps = {
   selectedChannel: string;
   onSelectChannel: (channel: string) => void;
 };
+
 
 export default function ControlTable({
   selectedChannel,
@@ -75,7 +76,7 @@ export default function ControlTable({
   
     async function load() {
       try {
-        const items = await fetchProcesses();
+        const items = await processApi.getAll();
         if (alive) setProcesses(items);
       } catch (err) {
         console.error("Failed to load processes", err);
@@ -90,7 +91,7 @@ export default function ControlTable({
       window.clearInterval(id);
     };
   }, [setProcesses]);
-  
+
   // Row selection
   const handleRowSelect = (name: string) => {
     setSelectedProcess(name);
