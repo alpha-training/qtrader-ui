@@ -8,7 +8,7 @@ class WsProvider {
   private ws: WebSocket | null = null;
   private reconnectAttempts = 0;
 
-  private isConnecting = false;   // ⭐ NEW — prevent double connect
+  private isConnecting = false; // prevent double connect
   private hasConnectedOnce = false;
 
   private heartbeatInterval: number | undefined;
@@ -24,6 +24,12 @@ class WsProvider {
   private readonly WS_URL =
     import.meta.env.VITE_WS_URL || "ws://localhost:9001/ws";
 
+  // ✅ NEW: allow disabling WS completely via env
+  // Set in .env/.env.development:
+  // VITE_WS_ENABLED=false
+  private readonly WS_ENABLED =
+    String(import.meta.env.VITE_WS_ENABLED ?? "true") !== "false";
+
   // --------------------------------------------------
   // LOG BUFFER
   // --------------------------------------------------
@@ -31,7 +37,10 @@ class WsProvider {
     this.logBuffer.push(log);
 
     if (!this.flushTimer) {
-      this.flushTimer = window.setTimeout(() => this.flushLogBuffer(), this.BUFFER_FLUSH_MS);
+      this.flushTimer = window.setTimeout(
+        () => this.flushLogBuffer(),
+        this.BUFFER_FLUSH_MS
+      );
     }
   }
 
@@ -44,9 +53,18 @@ class WsProvider {
   }
 
   // --------------------------------------------------
-  // CONNECT — fixed to avoid duplicates
+  // CONNECT — optional + safe
   // --------------------------------------------------
   connect() {
+    // ✅ If WS disabled, keep app quiet and mark WS as closed (not reconnecting)
+    if (!this.WS_ENABLED) {
+      this.isConnecting = false;
+      this.cleanup();
+      useWsStore.getState().setClosed();
+      console.info("[WS] disabled (VITE_WS_ENABLED=false)");
+      return;
+    }
+
     if (this.isConnecting) {
       console.warn("[WS] connect() ignored — already connecting");
       return;
@@ -58,9 +76,16 @@ class WsProvider {
     this.cleanup();
 
     useWsStore.getState().setConnecting();
-    console.log("[WS] connecting…");
+    console.log("[WS] connecting…", this.WS_URL);
 
-    this.ws = new WebSocket(this.WS_URL);
+    try {
+      this.ws = new WebSocket(this.WS_URL);
+    } catch (e) {
+      this.isConnecting = false;
+      console.error("[WS] failed to construct WebSocket:", e);
+      useWsStore.getState().setClosed();
+      return;
+    }
 
     this.ws.onopen = () => this.handleOpen();
     this.ws.onmessage = (ev) => this.handleMessage(ev);
@@ -99,12 +124,12 @@ class WsProvider {
       /* ignore */
     }
 
-    // ⭐ IMPORTANT: call router exactly once per message
     wsRouter(data);
   }
 
   private handleError() {
     console.warn("[WS] error");
+    // Don't force reconnect here; onclose will schedule it.
   }
 
   private handleClose() {
@@ -113,6 +138,9 @@ class WsProvider {
 
     useWsStore.getState().setClosed();
     this.stopHeartbeat();
+
+    // ✅ If WS disabled, never reconnect
+    if (!this.WS_ENABLED) return;
 
     this.scheduleReconnect();
   }
@@ -134,7 +162,6 @@ class WsProvider {
 
     this.heartbeatTimeout = window.setTimeout(() => {
       console.error("[WS] heartbeat timeout");
-
       useWsStore.getState().setClosed();
       this.ws?.close();
     }, this.TIMEOUT_MS);
@@ -163,6 +190,9 @@ class WsProvider {
   // RECONNECT
   // --------------------------------------------------
   private scheduleReconnect() {
+    // ✅ If WS disabled, never reconnect
+    if (!this.WS_ENABLED) return;
+
     this.reconnectAttempts++;
     const delay = Math.min(5000, 500 * Math.pow(1.5, this.reconnectAttempts));
 
@@ -176,6 +206,9 @@ class WsProvider {
   // SEND
   // --------------------------------------------------
   send(data: any) {
+    // ✅ If WS disabled, do nothing quietly
+    if (!this.WS_ENABLED) return;
+
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       return console.warn("[WS] send() ignored — socket not open");
     }
@@ -216,6 +249,8 @@ class WsProvider {
       try {
         this.ws.close();
       } catch {}
+
+      this.ws = null;
     }
   }
 }

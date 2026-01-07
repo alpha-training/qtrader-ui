@@ -11,7 +11,7 @@ import ConfirmStopAllModal from "../UI/ConfirmStopAllModal";
 
 import { useProcessStore } from "../../store/processStore";
 import { usePrefs } from "../../hooks/usePrefs";
-import { processApi } from "../../api/processApi";
+import { fetchProcesses } from "../../api/processes";
 
 type ControlTableProps = {
   selectedChannel: string;
@@ -69,22 +69,28 @@ export default function ControlTable({
     processes.length > 0 &&
     processes.every((p) => p.status === "down");
 
-  // Load processes from API (mock)
+  // Load processes from API 
   useEffect(() => {
-    if (processes.length) return;
-
+    let alive = true;
+  
     async function load() {
       try {
-        const items = await processApi.getAll();
-        setProcesses(items);
+        const items = await fetchProcesses();
+        if (alive) setProcesses(items);
       } catch (err) {
         console.error("Failed to load processes", err);
       }
     }
-
+  
     load();
-  }, [processes.length, setProcesses]);
-
+    const id = window.setInterval(load, 3000);
+  
+    return () => {
+      alive = false;
+      window.clearInterval(id);
+    };
+  }, [setProcesses]);
+  
   // Row selection
   const handleRowSelect = (name: string) => {
     setSelectedProcess(name);
