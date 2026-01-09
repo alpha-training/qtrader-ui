@@ -12,7 +12,6 @@ export function connectLogStreamMock(
 ) {
   console.warn("Mock WS logs enabled");
 
-  // Emit initial log for each process
   processes.forEach((p) =>
     emit({
       timestamp: new Date().toISOString(),
@@ -29,9 +28,7 @@ export function connectLogStreamMock(
       emit({
         timestamp: new Date().toISOString(),
         level: isError ? "ERROR" : "INFO",
-        message: isError
-          ? `${p.name} reported an error`
-          : `${p.name} heartbeat ok`,
+        message: isError ? `${p.name} reported an error` : `${p.name} heartbeat ok`,
         channel: p.name,
       });
     });
@@ -41,13 +38,14 @@ export function connectLogStreamMock(
 }
 
 /**
- * REAL log stream (simple polling)
+ * REAL log stream (polling)
  *
- * Backend you currently have:
- *   GET /logs/:name  -> returns { tail: ... } OR an array of lines/entries
+ * Backend:
+ *   GET /logs/:name  -> returns { tail: ... } or an error
  *
- * This polls each process every `pollMs` and emits new lines.
- * It’s a pragmatic "works now" bridge until backend exposes a proper WS to the UI.
+ * Improvements:
+ * - No error spam: we emit "unavailable" once per process until it recovers
+ * - Emits status events (type: "log_status") so UI can show per-process hint
  */
 export function connectLogStream(
   processes: Process[],
@@ -57,36 +55,97 @@ export function connectLogStream(
   const pollMs = opts?.pollMs ?? 2000;
   console.log("Real logs enabled (polling)", { pollMs });
 
-  // Keep track of last seen content per channel so we only emit new lines
   const lastSeen: Record<string, string> = {};
+
+  // Track log availability per process so we don't spam
+  const status: Record<
+    string,
+    { available: boolean; lastError?: string; hadAnySuccess: boolean }
+  > = {};
+
+  function emitStatus(pname: string, available: boolean, error?: string) {
+    const prev = status[pname];
+    const wasAvailable = prev?.available ?? true;
+
+    status[pname] = {
+      available,
+      lastError: error,
+      hadAnySuccess: prev?.hadAnySuccess ?? false,
+    };
+
+    // Only emit when the availability changes OR error text changes while unavailable
+    if (wasAvailable !== available || (!available && error && error !== prev?.lastError)) {
+      emit({
+        type: "log_status",
+        timestamp: new Date().toISOString(),
+        level: available ? "INFO" : "ERROR",
+        channel: pname,
+        message: JSON.stringify({
+          available,
+          error: error ?? null,
+        }),
+      });
+    }
+  }
 
   let stopped = false;
 
+  function normalizeTail(resp: any): string {
+    const tail = (resp && (resp.tail ?? resp)) as unknown;
+
+    if (Array.isArray(tail)) return tail.join("\n");
+    if (typeof tail === "string") return tail;
+    if (tail == null) return "";
+    return JSON.stringify(tail);
+  }
+
   async function pollOne(p: Process) {
+    if (stopped) return;
+
     try {
-      // Your backend: GET /logs/:name
       const resp = await apiGet(`/logs/${encodeURIComponent(p.name)}`);
+      const text = normalizeTail(resp);
+      if (typeof text === "string" && text.toLowerCase().includes("kdb error")) {
+        emit({
+          timestamp: new Date().toISOString(),
+          level: "ERROR",
+          channel: p.name,
+          message: text,
+        });
+        return;
+      }
 
-      // Accept a few possible shapes
-      // - { tail: string }
-      // - { tail: string[] }
-      // - string
-      // - string[]
-      const tail =
-        (resp && (resp.tail ?? resp)) as unknown;
+      // Mark available on first success (or recovery)
+      const prev = status[p.name];
+      if (!prev || prev.available === false) {
+        emitStatus(p.name, true);
+        // optional: one friendly info line on recovery
+        if (prev?.available === false) {
+          emit({
+            timestamp: new Date().toISOString(),
+            level: "INFO",
+            message: `Logs reconnected for ${p.name}`,
+            channel: p.name,
+          });
+        }
+      }
 
-      let text = "";
-      if (Array.isArray(tail)) text = tail.join("\n");
-      else if (typeof tail === "string") text = tail;
-      else text = JSON.stringify(tail);
+      status[p.name] = {
+        available: true,
+        lastError: undefined,
+        hadAnySuccess: true,
+      };
 
-      const prev = lastSeen[p.name] ?? "";
-      if (text && text !== prev) {
-        // Emit only the new part (best-effort)
-        const newPart =
-          prev && text.startsWith(prev) ? text.slice(prev.length) : text;
+      // Don't spam old history: store first snapshot silently
+      const prevText = lastSeen[p.name] ?? "";
+      if (!prevText && text) {
+        lastSeen[p.name] = text;
+        return;
+      }
 
-        // Split into lines and emit
+      if (text && text !== prevText) {
+        const newPart = prevText && text.startsWith(prevText) ? text.slice(prevText.length) : text;
+
         const lines = newPart
           .split("\n")
           .map((s) => s.trimEnd())
@@ -102,24 +161,29 @@ export function connectLogStream(
         }
 
         lastSeen[p.name] = text;
-      } else if (!prev && text) {
-        // First poll: store without spamming old history,
-        // but emit one "connected" message so UI shows activity.
-        lastSeen[p.name] = text;
+      }
+    } catch (e: any) {
+      // Extract a readable error string (best-effort)
+      const errText =
+        (typeof e?.message === "string" && e.message) ||
+        (typeof e === "string" ? e : "Failed to fetch logs");
+
+      // Emit unavailable status ONCE (no spam every poll)
+      const prev = status[p.name];
+      if (!prev || prev.available !== false) {
+        emitStatus(p.name, false, errText);
+
+        // Optional: show 1 visible log line (once) so user sees something happened
         emit({
           timestamp: new Date().toISOString(),
-          level: "INFO",
-          message: `Connected to logs for ${p.name}`,
+          level: "ERROR",
+          message: `Logs unavailable for ${p.name}`,
           channel: p.name,
         });
+      } else {
+        // Still unavailable — keep status but do not emit more logs
+        emitStatus(p.name, false, errText);
       }
-    } catch (e) {
-      emit({
-        timestamp: new Date().toISOString(),
-        level: "ERROR",
-        message: `Failed to fetch logs for ${p.name}`,
-        channel: p.name,
-      });
     }
   }
 
