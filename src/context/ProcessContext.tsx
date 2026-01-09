@@ -1,14 +1,7 @@
 // src/context/ProcessContext.tsx
 import { createContext, useContext, useEffect, useState } from "react";
 import type { Process } from "../types/Process";
-import {
-  fetchProcesses,
-  startProcessAPI,
-  stopProcessAPI,
-  startAllAPI,
-  stopAllAPI,
-  mockProcesses,
-} from "../api/processes";
+import { processApi } from "../api/processApi";
 
 type ProcessContextType = {
   processes: Process[];
@@ -29,16 +22,14 @@ const ProcessContext = createContext<ProcessContextType>({
 });
 
 export function ProcessProvider({ children }: { children: React.ReactNode }) {
-  // 1) start with mock data so UI always works
-  const [processes, setProcesses] = useState<Process[]>(mockProcesses);
+  const [processes, setProcesses] = useState<Process[]>([]);
 
-  // 2) single attempt to load from real API (if backend is up)
   const refresh = async () => {
     try {
-      const data = await fetchProcesses();
+      const data = await processApi.getAll();
       setProcesses(data);
     } catch {
-      // API offline → keep current local state
+      // keep whatever we have (or empty) if API is down
     }
   };
 
@@ -46,12 +37,10 @@ export function ProcessProvider({ children }: { children: React.ReactNode }) {
     refresh();
   }, []);
 
-  // --- local helpers (optimistic) --------------------
-
   const start = async (name: string) => {
     // optimistic local update
-    setProcesses(prev =>
-      prev.map(p =>
+    setProcesses((prev) =>
+      prev.map((p) =>
         p.name === name
           ? {
               ...p,
@@ -62,60 +51,49 @@ export function ProcessProvider({ children }: { children: React.ReactNode }) {
       )
     );
 
-    // best-effort API call
     try {
-      await startProcessAPI(name);
-    } catch {
-      // ignore for now – UI already updated
-    }
+      await processApi.start(name);
+      await refresh(); // sync actual pid/status from backend if available
+    } catch {}
   };
 
   const stop = async (name: string) => {
-    setProcesses(prev =>
-      prev.map(p =>
-        p.name === name ? { ...p, status: "down", pid: null } : p
-      )
+    setProcesses((prev) =>
+      prev.map((p) => (p.name === name ? { ...p, status: "down", pid: null } : p))
     );
 
     try {
-      await stopProcessAPI(name);
+      await processApi.stop(name);
+      await refresh();
     } catch {}
   };
 
   const startAll = async () => {
-    setProcesses(prev =>
-      prev.map(p =>
+    setProcesses((prev) =>
+      prev.map((p) =>
         p.status === "down"
-          ? {
-              ...p,
-              status: "up",
-              pid: p.pid ?? Math.floor(1000 + Math.random() * 9000),
-            }
+          ? { ...p, status: "up", pid: p.pid ?? Math.floor(1000 + Math.random() * 9000) }
           : p
       )
     );
 
     try {
-      await startAllAPI();
+      await processApi.startAll();
+      await refresh();
     } catch {}
   };
 
   const stopAll = async () => {
-    setProcesses(prev =>
-      prev.map(p =>
-        p.status === "up" ? { ...p, status: "down", pid: null } : p
-      )
-    );
+    setProcesses((prev) => prev.map((p) => (p.status === "up" ? { ...p, status: "down", pid: null } : p)));
 
     try {
-      await stopAllAPI();
+      await processApi.stopAll();
+      await refresh();
     } catch {}
   };
 
   return (
-    <ProcessContext.Provider
-      value={{ processes, refresh, start, stop, startAll, stopAll }}
-    >
+    <ProcessContext.Provider value={{ processes, refresh, start, stop, startAll, stopAll }}>
       {children}
     </ProcessContext.Provider>
   );

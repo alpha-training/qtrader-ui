@@ -1,5 +1,4 @@
-// src/components/control/ControlTable.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import ProcessRow from "./ProcessRow";
 import Pagination from "../UI/Pagination";
@@ -24,7 +23,9 @@ export default function ControlTable({
 }: ControlTableProps) {
   const {
     processes,
+    pending,
     selectedProcess,
+    isBulkOperation,
     setProcesses,
     setSelectedProcess,
     startOne,
@@ -33,21 +34,30 @@ export default function ControlTable({
     stopAll,
   } = useProcessStore();
 
-  const {
-    confirmStart,
-    confirmStop,
-    confirmStartAll,
-    confirmStopAll,
-  } = usePrefs();
+  const { confirmStart, confirmStop, confirmStartAll, confirmStopAll } =
+    usePrefs();
+
+  const hasPending = useMemo(
+    () => Object.values(pending).some(Boolean),
+    [pending]
+  );
+
+  // ✅ Only show header "Starting..." when the pending comes from bulk mode
+  const bulkStartPending = useMemo(() => {
+    if (!isBulkOperation) return false;
+    return Object.values(pending).some((v) => v === "start");
+  }, [pending, isBulkOperation]);
+
+  const bulkStopPending = useMemo(() => {
+    if (!isBulkOperation) return false;
+    return Object.values(pending).some((v) => v === "stop");
+  }, [pending, isBulkOperation]);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
-  const totalPages = Math.max(
-    1,
-    Math.ceil(processes.length / pageSize)
-  );
+  const totalPages = Math.max(1, Math.ceil(processes.length / pageSize));
 
   const paginated = processes.slice(
     (currentPage - 1) * pageSize,
@@ -62,89 +72,73 @@ export default function ControlTable({
 
   // Derived flags
   const allRunning =
-    processes.length > 0 &&
-    processes.every((p) => p.status === "up");
+    processes.length > 0 && processes.every((p) => p.status === "up");
 
   const allStopped =
-    processes.length > 0 &&
-    processes.every((p) => p.status === "down");
+    processes.length > 0 && processes.every((p) => p.status === "down");
 
-  // Load processes from API (mock)
+  // Poll processes from API. Faster polling while pending for smoother spinner UX.
   useEffect(() => {
-    if (processes.length) return;
+    let alive = true;
 
     async function load() {
       try {
         const items = await processApi.getAll();
-        setProcesses(items);
+        if (alive) setProcesses(items);
       } catch (err) {
         console.error("Failed to load processes", err);
       }
     }
 
     load();
-  }, [processes.length, setProcesses]);
+
+    const intervalMs = hasPending ? 700 : 3000;
+    const id = window.setInterval(load, intervalMs);
+
+    return () => {
+      alive = false;
+      window.clearInterval(id);
+    };
+  }, [setProcesses, hasPending]);
 
   // Row selection
   const handleRowSelect = (name: string) => {
     setSelectedProcess(name);
-
-    // sync with Logs tabs
-    if (selectedChannel !== name) {
-      onSelectChannel(name);
-    }
+    if (selectedChannel !== name) onSelectChannel(name);
   };
 
   // Single row start/stop
   const handleStart = (name: string) => {
     setSelectedProcess(name);
-
-    if (confirmStart) {
-      setStartModalOpen(true);
-    } else {
-      startOne(name);
-    }
+    if (confirmStart) setStartModalOpen(true);
+    else startOne(name);
   };
 
   const handleStop = (name: string) => {
     setSelectedProcess(name);
-
-    if (confirmStop) {
-      setStopModalOpen(true);
-    } else {
-      stopOne(name);
-    }
+    if (confirmStop) setStopModalOpen(true);
+    else stopOne(name);
   };
 
   const confirmStartOne = () => {
-    if (selectedProcess) {
-      startOne(selectedProcess);
-    }
+    if (selectedProcess) startOne(selectedProcess);
     setStartModalOpen(false);
   };
 
   const confirmStopOne = () => {
-    if (selectedProcess) {
-      stopOne(selectedProcess);
-    }
+    if (selectedProcess) stopOne(selectedProcess);
     setStopModalOpen(false);
   };
 
   // All processes
   const handleStartAll = () => {
-    if (confirmStartAll) {
-      setStartAllModalOpen(true);
-    } else {
-      startAll();
-    }
+    if (confirmStartAll) setStartAllModalOpen(true);
+    else startAll();
   };
 
   const handleStopAll = () => {
-    if (confirmStopAll) {
-      setStopAllModalOpen(true);
-    } else {
-      stopAll();
-    }
+    if (confirmStopAll) setStopAllModalOpen(true);
+    else stopAll();
   };
 
   const confirmStartAllAction = () => {
@@ -163,32 +157,32 @@ export default function ControlTable({
       <div className="flex justify-end gap-2 mb-2">
         <button
           onClick={handleStartAll}
-          disabled={allRunning}
+          disabled={allRunning || bulkStopPending} // optional: don't allow start-all while stop-all is running
           className={`
             px-2 py-0.5 text-xs rounded-sm border transition
             ${
-              allRunning
+              allRunning || bulkStopPending
                 ? "border-gray-700 text-gray-500 cursor-not-allowed opacity-40"
                 : "border-green-600 text-green-400 hover:bg-green-600 hover:text-black"
             }
           `}
         >
-          Start all
+          {bulkStartPending ? "Starting..." : "Start all"}
         </button>
 
         <button
           onClick={handleStopAll}
-          disabled={allStopped}
+          disabled={allStopped || bulkStartPending} // optional: don't allow stop-all while start-all is running
           className={`
             px-2 py-0.5 text-xs rounded-sm border transition
             ${
-              allStopped
+              allStopped || bulkStartPending
                 ? "border-gray-700 text-gray-500 cursor-not-allowed opacity-40"
                 : "border-orange-600 text-orange-400 hover:bg-orange-600 hover:text-black"
             }
           `}
         >
-          Stop all
+          {bulkStopPending ? "Stopping..." : "Stop all"}
         </button>
       </div>
 
@@ -227,12 +221,8 @@ export default function ControlTable({
       <Pagination
         currentPage={currentPage}
         totalPages={totalPages}
-        onPrev={() =>
-          setCurrentPage((p) => Math.max(1, p - 1))
-        }
-        onNext={() =>
-          setCurrentPage((p) => Math.min(totalPages, p + 1))
-        }
+        onPrev={() => setCurrentPage((p) => Math.max(1, p - 1))}
+        onNext={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
       />
 
       {/* modals */}

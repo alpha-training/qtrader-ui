@@ -1,28 +1,29 @@
 // src/api/client.ts
-export const API_BASE = "http://localhost:3000/api";
+import { config } from "../config";
+export const API_BASE = config.apiUrl;
 
 export async function apiGet(path: string) {
-  try {
-    const res = await fetch(`${API_BASE}${path}`);
-    if (!res.ok) throw new Error("API error");
-    return await res.json();
-  } catch (err) {
-    console.warn("⚠ API offline — using mock data");
-    throw err;
+  const url = `${API_BASE}${path}`;
+  const res = await fetch(url);
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`GET ${url} -> ${res.status} ${text}`);
   }
+  return res.json();
 }
 
-export async function apiPost(path: string, body: any = {}) {
-  try {
-    const res = await fetch(`${API_BASE}${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) throw new Error("API error");
-    return await res.json();
-  } catch (err) {
-    console.warn("⚠ API offline — using mock data");
-    throw err;
+export async function apiPost(path: string, body: any = undefined) {
+  const url = `${API_BASE}${path}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`POST ${url} -> ${res.status} ${text}`);
   }
+  return res.json();
 }

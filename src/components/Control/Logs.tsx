@@ -1,12 +1,12 @@
-// src/components/control/Logs.tsx
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { RotateCw } from "lucide-react";
 import LogEntry from "./LogEntry";
 
 import { useLogsStore } from "../../store/logsStore";
 import { useProcessStore } from "../../store/processStore";
 import { logsApi } from "../../api/logsApi";
-import { wsClient } from "../../ws/wsProvider";   // ⭐ ADDED
+import { config } from "../../config";
+import { connectLogStreamMock, connectLogStream } from "../../api/logs";
 
 type LogsProps = {
   selectedChannel: string;
@@ -30,42 +30,79 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
 
   const logRef = useRef<HTMLDivElement>(null);
 
-  // INITIAL LOAD FROM API (mock)
+  /**
+   * Initial load:
+   * - mock: load mock history
+   * - real: skip getAll (backend doesn't provide "all logs" endpoint)
+   */
   useEffect(() => {
-    async function load() {
+    let alive = true;
+
+    async function loadMockHistory() {
       try {
         const items = await logsApi.getAll();
+        if (!alive) return;
         clearLogs();
         items.forEach((l) => pushLog(l));
-      } catch (err) {
-        console.warn("Logs: using empty logs (mock failed)");
+      } catch {
+        // ignore
       }
     }
 
-    load();
+    if (config.apiMode !== "real") loadMockHistory();
+
+    return () => {
+      alive = false;
+    };
   }, [clearLogs, pushLog]);
 
+  /**
+   * ✅ Start ONE log stream and push into zustand store.
+   * IMPORTANT: If you also run a LogProvider that starts a stream,
+   * you'll get duplicates / repeated console logs.
+   */
+  useEffect(() => {
+    if (!processes.length) return;
+
+    const stop =
+      config.apiMode === "real"
+        ? connectLogStream(processes, pushLog, { pollMs: 2000 })
+        : connectLogStreamMock(processes, pushLog);
+
+    return () => stop?.();
+  }, [processes, pushLog]);
+
   // CHANNEL TABS ORDER
-  const processNames = processes.map((p) => p.name);
-  const logChannels = Array.from(new Set(logs.map((l) => l.channel)));
+  const processNames = useMemo(() => processes.map((p) => p.name), [processes]);
 
-  const extraChannels = logChannels
-    .filter((ch) => !processNames.includes(ch))
-    .sort();
+  const logChannels = useMemo(
+    () => Array.from(new Set(logs.map((l) => l.channel))),
+    [logs]
+  );
 
-  const channels = ["All", ...processNames, ...extraChannels];
+  const extraChannels = useMemo(
+    () => logChannels.filter((ch) => !processNames.includes(ch)).sort(),
+    [logChannels, processNames]
+  );
+
+  const channels = useMemo(
+    () => ["All", ...processNames, ...extraChannels],
+    [processNames, extraChannels]
+  );
 
   // FILTERED LOGS
-  const filteredLogs = logs.filter((log) => {
-    const matchChannel =
-      selectedChannel === "All" || log.channel === selectedChannel;
+  const filteredLogs = useMemo(() => {
+    return logs.filter((log) => {
+      const matchChannel =
+        selectedChannel === "All" || log.channel === selectedChannel;
 
-    const matchLevel =
-      (log.level === "INFO" && showInfo) ||
-      (log.level === "ERROR" && showError);
+      const matchLevel =
+        (log.level === "INFO" && showInfo) ||
+        (log.level === "ERROR" && showError);
 
-    return matchChannel && matchLevel;
-  });
+      return matchChannel && matchLevel;
+    });
+  }, [logs, selectedChannel, showInfo, showError]);
 
   // AUTO-SCROLL
   useEffect(() => {
@@ -74,38 +111,17 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
     }
   }, [filteredLogs, autoScroll]);
 
-  // ⭐ PAGINATION SCROLL HANDLER (NEW)
-  useEffect(() => {
-    const el = logRef.current;
-    if (!el) return;
-
-    const handleScroll = () => {
-      if (el.scrollTop < 50) {
-        const first = logs[0];
-        if (first) {
-          wsClient.requestLogsPage(first.timestamp);
-        } else {
-          wsClient.requestLogsPage();
-        }
-      }
-    };
-
-    el.addEventListener("scroll", handleScroll);
-    return () => el.removeEventListener("scroll", handleScroll);
-  }, [logs]);
-
-  // REFRESH (fake/manual)
+  // REFRESH (manual marker)
   const refreshLogs = async () => {
     setIsRefreshing(true);
-
-    await new Promise((res) => setTimeout(res, 500));
+    await new Promise((res) => setTimeout(res, 250));
 
     pushLog({
-      type: "log_entry",
-      timestamp: new Date().toLocaleTimeString("en-GB"),
+      timestamp: new Date().toISOString(),
       level: "INFO",
       channel: selectedChannel === "All" ? "system" : selectedChannel,
       message: "Manual refresh",
+      type: "log_entry",
     });
 
     setIsRefreshing(false);
@@ -114,15 +130,11 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
   // CHANNEL CLICK HANDLER
   const handleChannelClick = (channel: string) => {
     onChannelChange(channel);
-
-    if (channel !== "All") {
-      setSelectedProcess(channel);
-    }
+    if (channel !== "All") setSelectedProcess(channel);
   };
 
   return (
     <div className="mt-4">
-      {/* Title + Refresh */}
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-base font-semibold">Logs:</h2>
 
@@ -140,8 +152,7 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
         </button>
       </div>
 
-      {/* CHANNEL TABS */}
-      <div className="flex gap-4 text-gray-400 mb-3">
+      <div className="flex gap-4 text-gray-400 mb-3 flex-wrap">
         {channels.map((ch) => {
           const active = selectedChannel === ch;
           return (
@@ -163,7 +174,6 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
         })}
       </div>
 
-      {/* FILTERS + AUTOSCROLL */}
       <div className="flex items-center gap-4 text-gray-300 mb-2">
         <label className="flex items-center gap-1 text-xs cursor-pointer">
           <input
@@ -202,7 +212,6 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
         </div>
       </div>
 
-      {/* LOG WINDOW */}
       <div
         ref={logRef}
         className="h-64 overflow-y-auto border border-gray-800 rounded-md p-2 bg-[#11161b] text-sm"
