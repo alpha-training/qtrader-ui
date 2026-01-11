@@ -13,6 +13,7 @@ type ProcessRowProps = {
 };
 
 const MIN_START_SPINNER_MS = 450;
+const RETRY_COOLDOWN_MS = 3000;
 
 export default function ProcessRow({
   process,
@@ -22,13 +23,34 @@ export default function ProcessRow({
   onStop,
 }: ProcessRowProps) {
   const pending = useProcessStore((s) => s.pending[process.name]);
-  const stuck = useProcessStore((s) => s.stuck[process.name] ?? false);
+  const stuck = useProcessStore((s) => s.stuck?.[process.name] ?? false);
   const clearStuck = useProcessStore((s) => s.clearStuck);
 
   const running = process.status === "up";
 
   // Spinner only for START
   const [showStartSpinner, setShowStartSpinner] = useState(false);
+
+  // Retry cooldown (prevents spamming backend)
+  const [cooldownUntil, setCooldownUntil] = useState<number>(0);
+  const [now, setNow] = useState<number>(() => Date.now());
+
+  const isStartPending = pending === "start";
+  const inCooldown = now < cooldownUntil;
+  const disableStart = isStartPending || inCooldown;
+
+  const retrySecondsLeft = useMemo(() => {
+    if (!inCooldown) return 0;
+    const msLeft = cooldownUntil - now;
+    return Math.max(1, Math.ceil(msLeft / 1000));
+  }, [cooldownUntil, inCooldown, now]);
+
+  // keep "now" ticking only while cooldown is active
+  useEffect(() => {
+    if (!inCooldown) return;
+    const id = window.setInterval(() => setNow(Date.now()), 200);
+    return () => window.clearInterval(id);
+  }, [inCooldown]);
 
   // Helpful secondary text for stuck/bad starts
   const stuckHint = useMemo(() => {
@@ -43,7 +65,7 @@ export default function ProcessRow({
   useEffect(() => {
     let t: number | undefined;
 
-    if (pending === "start") {
+    if (isStartPending) {
       setShowStartSpinner(true);
 
       // Ensure spinner visible long enough (prevents blink)
@@ -60,12 +82,14 @@ export default function ProcessRow({
     return () => {
       if (t) window.clearTimeout(t);
     };
-  }, [pending, process.name]);
+  }, [isStartPending, process.name]);
 
   const handleRowClick = () => onSelect(process.name);
 
   const handleStart = (e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
+    if (disableStart) return;
+
     // if it was stuck, clear the stuck banner before retry
     clearStuck(process.name);
     onStart(process.name);
@@ -78,7 +102,13 @@ export default function ProcessRow({
 
   const handleRetry = (e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
+    if (disableStart) return;
+
     clearStuck(process.name);
+    // start cooldown immediately to prevent spam-clicks
+    setCooldownUntil(Date.now() + RETRY_COOLDOWN_MS);
+    setNow(Date.now());
+
     onStart(process.name);
   };
 
@@ -123,6 +153,7 @@ export default function ProcessRow({
         <button
           onClick={handleLogClick}
           className="text-gray-400 hover:text-blue-400 transition"
+          title="Show logs for this process"
         >
           <FileText size={16} />
         </button>
@@ -130,7 +161,7 @@ export default function ProcessRow({
 
       <td className="px-3 py-1.5">
         {/* Fixed width prevents table shake */}
-        <div className="min-w-[120px] flex flex-col items-start gap-1">
+        <div className="min-w-[140px] flex flex-col items-start gap-1">
           {showStartSpinner ? (
             <button
               disabled
@@ -143,12 +174,27 @@ export default function ProcessRow({
             <>
               <button
                 onClick={handleRetry}
-                className="px-2 py-0.5 text-xs rounded-sm border border-yellow-600 text-yellow-300 hover:bg-yellow-600 hover:text-black flex items-center gap-1"
-                title="Start got stuck — retry"
+                disabled={disableStart}
+                className={`
+                  px-2 py-0.5 text-xs rounded-sm border flex items-center gap-1 transition
+                  ${
+                    disableStart
+                      ? "border-gray-600 text-gray-400 opacity-60 cursor-not-allowed"
+                      : "border-yellow-600 text-yellow-300 hover:bg-yellow-600 hover:text-black"
+                  }
+                `}
+                title={
+                  disableStart
+                    ? isStartPending
+                      ? "Start already in progress"
+                      : "Retry cooldown"
+                    : "Start got stuck — retry"
+                }
               >
                 <RotateCcw size={14} />
-                Retry
+                {inCooldown ? `Retry (${retrySecondsLeft}s)` : "Retry"}
               </button>
+
               {stuckHint ? (
                 <div className="text-[10px] text-gray-500">{stuckHint}</div>
               ) : null}
@@ -163,9 +209,24 @@ export default function ProcessRow({
           ) : (
             <button
               onClick={handleStart}
-              className="px-2 py-0.5 text-xs rounded-sm border border-green-600 text-green-400 hover:bg-green-600 hover:text-black"
+              disabled={disableStart}
+              className={`
+                px-2 py-0.5 text-xs rounded-sm border transition
+                ${
+                  disableStart
+                    ? "border-gray-600 text-gray-400 opacity-60 cursor-not-allowed"
+                    : "border-green-600 text-green-400 hover:bg-green-600 hover:text-black"
+                }
+              `}
+              title={
+                disableStart
+                  ? isStartPending
+                    ? "Start already in progress"
+                    : "Retry cooldown"
+                  : "Start process"
+              }
             >
-              Start
+              {inCooldown ? `Start (${retrySecondsLeft}s)` : "Start"}
             </button>
           )}
         </div>

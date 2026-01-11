@@ -104,12 +104,26 @@ export default function Logs({ selectedChannel, onChannelChange }: LogsProps) {
     });
   }, [logs, selectedChannel, showInfo, showError]);
 
-  // AUTO-SCROLL
+  // AUTO-SCROLL on new logs (while enabled)
   useEffect(() => {
     if (autoScroll && logRef.current) {
       logRef.current.scrollTop = logRef.current.scrollHeight;
     }
   }, [filteredLogs, autoScroll]);
+
+  // ✅ NEW: when channel changes, jump to bottom once (only if autoScroll is ON)
+  useEffect(() => {
+    if (!autoScroll) return;
+
+    // wait for DOM paint so height is correct
+    const id = window.requestAnimationFrame(() => {
+      if (logRef.current) {
+        logRef.current.scrollTop = logRef.current.scrollHeight;
+      }
+    });
+
+    return () => window.cancelAnimationFrame(id);
+  }, [selectedChannel, autoScroll]);
 
   // REFRESH (manual marker)
   const refreshLogs = async () => {

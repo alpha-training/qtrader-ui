@@ -107,26 +107,41 @@ export default function ControlTable({
     if (selectedChannel !== name) onSelectChannel(name);
   };
 
+  // ✅ Start/Stop should auto-switch Logs tab to that process
+  const focusLogs = (name: string) => {
+    if (selectedChannel !== name) onSelectChannel(name);
+  };
+
   // Single row start/stop
   const handleStart = (name: string) => {
     setSelectedProcess(name);
+    focusLogs(name); // ✅ auto switch logs on Start/Retry
+
     if (confirmStart) setStartModalOpen(true);
     else startOne(name);
   };
 
   const handleStop = (name: string) => {
     setSelectedProcess(name);
+    focusLogs(name); // ✅ auto switch logs on Stop
+
     if (confirmStop) setStopModalOpen(true);
     else stopOne(name);
   };
 
   const confirmStartOne = () => {
-    if (selectedProcess) startOne(selectedProcess);
+    if (selectedProcess) {
+      focusLogs(selectedProcess); // ✅ also when modal confirms
+      startOne(selectedProcess);
+    }
     setStartModalOpen(false);
   };
 
   const confirmStopOne = () => {
-    if (selectedProcess) stopOne(selectedProcess);
+    if (selectedProcess) {
+      focusLogs(selectedProcess); // ✅ also when modal confirms
+      stopOne(selectedProcess);
+    }
     setStopModalOpen(false);
   };
 
@@ -157,7 +172,7 @@ export default function ControlTable({
       <div className="flex justify-end gap-2 mb-2">
         <button
           onClick={handleStartAll}
-          disabled={allRunning || bulkStopPending} // optional: don't allow start-all while stop-all is running
+          disabled={allRunning || bulkStopPending}
           className={`
             px-2 py-0.5 text-xs rounded-sm border transition
             ${
@@ -172,7 +187,7 @@ export default function ControlTable({
 
         <button
           onClick={handleStopAll}
-          disabled={allStopped || bulkStartPending} // optional: don't allow stop-all while start-all is running
+          disabled={allStopped || bulkStartPending}
           className={`
             px-2 py-0.5 text-xs rounded-sm border transition
             ${

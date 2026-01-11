@@ -28,7 +28,9 @@ export function connectLogStreamMock(
       emit({
         timestamp: new Date().toISOString(),
         level: isError ? "ERROR" : "INFO",
-        message: isError ? `${p.name} reported an error` : `${p.name} heartbeat ok`,
+        message: isError
+          ? `${p.name} reported an error`
+          : `${p.name} heartbeat ok`,
         channel: p.name,
       });
     });
@@ -41,11 +43,11 @@ export function connectLogStreamMock(
  * REAL log stream (polling)
  *
  * Backend:
- *   GET /logs/:name  -> returns { tail: ... } or an error
+ *   GET /logs/:name  -> returns { tail: ... }
  *
- * Improvements:
- * - No error spam: we emit "unavailable" once per process until it recovers
- * - Emits status events (type: "log_status") so UI can show per-process hint
+ * Behavior:
+ * - no spam: treat "kdb error" as "logs unavailable" and emit once per process
+ * - status event (type: "log_status") emitted when availability changes
  */
 export function connectLogStream(
   processes: Process[],
@@ -57,7 +59,6 @@ export function connectLogStream(
 
   const lastSeen: Record<string, string> = {};
 
-  // Track log availability per process so we don't spam
   const status: Record<
     string,
     { available: boolean; lastError?: string; hadAnySuccess: boolean }
@@ -66,6 +67,7 @@ export function connectLogStream(
   function emitStatus(pname: string, available: boolean, error?: string) {
     const prev = status[pname];
     const wasAvailable = prev?.available ?? true;
+    const prevErr = prev?.lastError;
 
     status[pname] = {
       available,
@@ -73,22 +75,20 @@ export function connectLogStream(
       hadAnySuccess: prev?.hadAnySuccess ?? false,
     };
 
-    // Only emit when the availability changes OR error text changes while unavailable
-    if (wasAvailable !== available || (!available && error && error !== prev?.lastError)) {
+    // emit only when availability changes OR error string changes while unavailable
+    if (
+      wasAvailable !== available ||
+      (!available && error && error !== prevErr)
+    ) {
       emit({
         type: "log_status",
         timestamp: new Date().toISOString(),
         level: available ? "INFO" : "ERROR",
         channel: pname,
-        message: JSON.stringify({
-          available,
-          error: error ?? null,
-        }),
+        message: JSON.stringify({ available, error: error ?? null }),
       });
     }
   }
-
-  let stopped = false;
 
   function normalizeTail(resp: any): string {
     const tail = (resp && (resp.tail ?? resp)) as unknown;
@@ -99,33 +99,49 @@ export function connectLogStream(
     return JSON.stringify(tail);
   }
 
+  function isKdbErrorText(text: string) {
+    return text.toLowerCase().includes("kdb error");
+  }
+
+  let stopped = false;
+
   async function pollOne(p: Process) {
     if (stopped) return;
 
     try {
       const resp = await apiGet(`/logs/${encodeURIComponent(p.name)}`);
       const text = normalizeTail(resp);
-      if (typeof text === "string" && text.toLowerCase().includes("kdb error")) {
-        emit({
-          timestamp: new Date().toISOString(),
-          level: "ERROR",
-          channel: p.name,
-          message: text,
-        });
-        return;
+
+      // Backend "kdb error: tail" case -> treat as unavailable, emit once per process
+      if (text && isKdbErrorText(text)) {
+        const prev = status[p.name];
+        const firstTimeUnavailable = !prev || prev.available !== false;
+
+        emitStatus(p.name, false, text);
+
+        if (firstTimeUnavailable) {
+          emit({
+            timestamp: new Date().toISOString(),
+            level: "ERROR",
+            channel: p.name,
+            message: "Logs unavailable (backend tail not ready)",
+          });
+        }
+
+        return; // important: don't append raw kdb error every poll
       }
 
       // Mark available on first success (or recovery)
       const prev = status[p.name];
       if (!prev || prev.available === false) {
         emitStatus(p.name, true);
-        // optional: one friendly info line on recovery
+
         if (prev?.available === false) {
           emit({
             timestamp: new Date().toISOString(),
             level: "INFO",
-            message: `Logs reconnected for ${p.name}`,
             channel: p.name,
+            message: `Logs reconnected for ${p.name}`,
           });
         }
       }
@@ -136,7 +152,7 @@ export function connectLogStream(
         hadAnySuccess: true,
       };
 
-      // Don't spam old history: store first snapshot silently
+      // Store first snapshot silently (no spamming old history)
       const prevText = lastSeen[p.name] ?? "";
       if (!prevText && text) {
         lastSeen[p.name] = text;
@@ -144,7 +160,10 @@ export function connectLogStream(
       }
 
       if (text && text !== prevText) {
-        const newPart = prevText && text.startsWith(prevText) ? text.slice(prevText.length) : text;
+        const newPart =
+          prevText && text.startsWith(prevText)
+            ? text.slice(prevText.length)
+            : text;
 
         const lines = newPart
           .split("\n")
@@ -163,26 +182,22 @@ export function connectLogStream(
         lastSeen[p.name] = text;
       }
     } catch (e: any) {
-      // Extract a readable error string (best-effort)
       const errText =
         (typeof e?.message === "string" && e.message) ||
         (typeof e === "string" ? e : "Failed to fetch logs");
 
-      // Emit unavailable status ONCE (no spam every poll)
       const prev = status[p.name];
-      if (!prev || prev.available !== false) {
-        emitStatus(p.name, false, errText);
+      const firstTimeUnavailable = !prev || prev.available !== false;
 
-        // Optional: show 1 visible log line (once) so user sees something happened
+      emitStatus(p.name, false, errText);
+
+      if (firstTimeUnavailable) {
         emit({
           timestamp: new Date().toISOString(),
           level: "ERROR",
           message: `Logs unavailable for ${p.name}`,
           channel: p.name,
         });
-      } else {
-        // Still unavailable — keep status but do not emit more logs
-        emitStatus(p.name, false, errText);
       }
     }
   }
